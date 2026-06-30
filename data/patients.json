@@ -1,0 +1,32 @@
+[
+  {
+    "patient_id": "p-001",
+    "name": "Maria Garcia",
+    "dob": "1985-03-12",
+    "phone": "+14155550142"
+  },
+  {
+    "patient_id": "p-002",
+    "name": "James Chen",
+    "dob": "1990-11-23",
+    "phone": "+14155550173"
+  },
+  {
+    "patient_id": "p-003",
+    "name": "Aisha Mohammed",
+    "dob": "1978-07-04",
+    "phone": "+14155550190"
+  },
+  {
+    "patient_id": "p-004",
+    "name": "Robert Johnson",
+    "dob": "1965-01-30",
+    "phone": "+14155550118"
+  },
+  {
+    "patient_id": "p-005",
+    "name": "Emily Nguyen",
+    "dob": "2001-09-15",
+    "phone": "+14155550166"
+  }
+]

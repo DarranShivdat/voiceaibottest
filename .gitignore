@@ -1,0 +1,10 @@
+.env
+.venv/
+venv/
+__pycache__/
+*.pyc
+transcripts/*.txt
+data/*.tmp
+
+# Keep an empty transcripts dir tracked
+!transcripts/.gitkeep

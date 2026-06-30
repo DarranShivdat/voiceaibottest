@@ -1,0 +1,24 @@
+# Clinic scheduling voice agent — Python 3.11+
+#
+# Pipecat v1.x with the extras this demo uses:
+#   deepgram        - Deepgram Nova-3 STT (and a zero-config Deepgram TTS fallback)
+#   anthropic       - Anthropic Claude LLM (default)
+#   openai, google  - alternate LLMs / TTS for A/B swapping
+#   cartesia        - Cartesia Sonic TTS (default)
+#   silero          - Silero VAD
+#   local-smart-turn- Pipecat Smart Turn v3 (runs locally)
+#   webrtc          - SmallWebRTCTransport (browser demo)
+#   runner          - dev runner + prebuilt browser client at /client
+pipecat-ai[deepgram,anthropic,openai,google,cartesia,silero,local-smart-turn,webrtc,runner]>=1.0
+
+# Pipecat Flows — conversation logic
+pipecat-ai-flows
+
+# Prebuilt SmallWebRTC browser client served at http://localhost:7860/client
+pipecat-ai-small-webrtc-prebuilt
+
+# Optional: real SMS confirmations (only used if TWILIO_* env vars are set)
+twilio
+
+python-dotenv
+loguru

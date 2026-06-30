@@ -1,0 +1,12 @@
+[
+  { "slot_id": "slot-1",  "datetime": "2026-07-01T09:00:00", "provider": "Dr. Alan Smith",  "status": "open" },
+  { "slot_id": "slot-2",  "datetime": "2026-07-01T10:30:00", "provider": "Dr. Priya Patel", "status": "open" },
+  { "slot_id": "slot-3",  "datetime": "2026-07-01T14:00:00", "provider": "Dr. Alan Smith",  "status": "open" },
+  { "slot_id": "slot-4",  "datetime": "2026-07-02T08:30:00", "provider": "Dr. Maria Gomez", "status": "open" },
+  { "slot_id": "slot-5",  "datetime": "2026-07-02T11:00:00", "provider": "Dr. Priya Patel", "status": "open" },
+  { "slot_id": "slot-6",  "datetime": "2026-07-02T15:30:00", "provider": "Dr. Maria Gomez", "status": "open" },
+  { "slot_id": "slot-7",  "datetime": "2026-07-03T09:30:00", "provider": "Dr. Alan Smith",  "status": "open" },
+  { "slot_id": "slot-8",  "datetime": "2026-07-03T13:00:00", "provider": "Dr. Priya Patel", "status": "open" },
+  { "slot_id": "slot-9",  "datetime": "2026-07-06T10:00:00", "provider": "Dr. Maria Gomez", "status": "open" },
+  { "slot_id": "slot-10", "datetime": "2026-07-06T16:00:00", "provider": "Dr. Alan Smith",  "status": "open" }
+]
