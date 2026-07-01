@@ -21,6 +21,12 @@ def _flag(name: str, default: str = "false") -> bool:
 CLINIC_NAME = os.getenv("CLINIC_NAME", "Penciled Test Clinic")
 ASSISTANT_NAME = os.getenv("ASSISTANT_NAME", "Riley")
 
+# --- Flow config -------------------------------------------------------------
+# The conversation flow is data-driven: this JSON file defines every node,
+# question, transition, and tool call. Point at a different file to load a
+# different clinic's flow. Path is relative to the project root.
+FLOW_CONFIG = os.getenv("FLOW_CONFIG", "flows/penciled_test_clinic.json")
+
 
 # --- Provider selection (swap these in .env) --------------------------------
 STT_PROVIDER = os.getenv("STT_PROVIDER", "deepgram").lower()
