@@ -16,6 +16,20 @@ A node has `instructions` (spoken text/questions — templated), the `functions`
 exposes, an optional `context` ("reset"), and an optional `dynamic` block (builds
 a value like a slot list from a tool for the instructions template).
 
+Two additional node types are clinic-authorable with no code change:
+  * `categorize` — an open-ended intent router. Fields: `prompt`, `buckets`
+    (each `{name, description, next}`), and `fallback`. The engine builds a
+    `categorize_intent` function whose `bucket` param is an enum of the bucket
+    names (+ "none"); the LLM classifies the caller's utterance, the chosen
+    bucket name is stored in `state.intent`, and routing goes to that bucket's
+    `next` (or `fallback` when nothing matches).
+  * `collect` with a `fields` list — clinic-defined custom questions. Each field
+    is `{question, field, required, type?}`. The engine builds a submit function
+    (`submit_<id>`, params derived from the fields; required fields gated by the
+    schema) whose handler stores each answer in `state[field]` and advances to
+    `next`. Optional fields may be skipped. (Classic `collect` with
+    `instructions` + `functions` is unchanged.)
+
 Function behaviors describe what happens when the LLM calls the function:
 `guards` (early exits), `steps` (`store` state / call a `tool` / `log`), and
 either `routes` (conditional) or a plain `result` + `goto`. A handler returns
@@ -92,6 +106,31 @@ class FlowEngine:
 
     def build_node(self, node_id: str, flow_manager) -> NodeConfig:
         spec = self.nodes[node_id]
+        node_type = spec.get("type")
+        if node_type == "categorize":
+            return self._build_categorize_node(node_id, spec, flow_manager)
+        # "collect" with a `fields` list is the clinic-defined custom-question
+        # variant; classic "collect" (instructions + functions) is unchanged.
+        if node_type == "collect" and "fields" in spec:
+            return self._build_custom_collect_node(node_id, spec, flow_manager)
+        return self._build_generic_node(node_id, spec, flow_manager)
+
+    def _finalize_node(self, node_id, spec, instructions, functions) -> NodeConfig:
+        """Assemble a NodeConfig (shared by every node builder)."""
+        node: dict = {
+            "name": node_id,
+            "role_message": self.persona,
+            "task_messages": [{"role": "developer", "content": instructions}],
+            "functions": functions,
+            "respond_immediately": True,
+        }
+        if spec.get("context") == "reset":
+            node["context_strategy"] = ContextStrategyConfig(strategy=ContextStrategy.RESET)
+        if spec.get("type") in ("end", "handoff"):
+            node["post_actions"] = [{"type": "end_conversation"}]
+        return NodeConfig(**node)
+
+    def _build_generic_node(self, node_id: str, spec: dict, flow_manager) -> NodeConfig:
         state = flow_manager.state if flow_manager is not None else {}
 
         node_locals = {}
@@ -103,19 +142,99 @@ class FlowEngine:
 
         ctx = {**self.branding, **state, **node_locals}
         instructions = self._render_text(spec["instructions"], ctx)
+        functions = [self._build_function(f) for f in spec.get("functions", [])]
+        return self._finalize_node(node_id, spec, instructions, functions)
 
-        node: dict = {
-            "name": node_id,
-            "role_message": self.persona,
-            "task_messages": [{"role": "developer", "content": instructions}],
-            "functions": [self._build_function(f) for f in spec.get("functions", [])],
-            "respond_immediately": True,
-        }
-        if spec.get("context") == "reset":
-            node["context_strategy"] = ContextStrategyConfig(strategy=ContextStrategy.RESET)
-        if spec.get("type") in ("end", "handoff"):
-            node["post_actions"] = [{"type": "end_conversation"}]
-        return NodeConfig(**node)
+    # -- new node type: categorize (open-ended intent router) ----------------
+    def _build_categorize_node(self, node_id: str, spec: dict, flow_manager) -> NodeConfig:
+        buckets = spec["buckets"]
+        fallback = spec["fallback"]
+        bucket_map = {b["name"]: b for b in buckets}
+        enum = [b["name"] for b in buckets] + ["none"]
+        catalog = "\n".join(f"- {b['name']}: {b['description']}" for b in buckets)
+
+        state = flow_manager.state if flow_manager is not None else {}
+        prompt = self._render_text(spec["prompt"], {**self.branding, **state})
+        instructions = (
+            f"{prompt}\n\n"
+            "Listen to the caller's answer, then decide which single category below "
+            "best matches what they need and call categorize_intent with that "
+            f"category name:\n{catalog}\n"
+            'If none of these clearly match, use "none".'
+        )
+
+        async def handler(args, flow_manager, _map=bucket_map, _fb=fallback):
+            chosen = args.get("bucket")
+            flow_manager.state["intent"] = chosen
+            target = (_map.get(chosen) or {}).get("next") or _fb
+            return {"intent": chosen}, self.build_node(target, flow_manager)
+
+        classifier = FlowsFunctionSchema(
+            name="categorize_intent",
+            description="Record which category best matches what the caller needs.",
+            properties={
+                "bucket": {
+                    "type": "string",
+                    "enum": enum,
+                    "description": "The single best-matching category name.",
+                }
+            },
+            required=["bucket"],
+            handler=handler,
+        )
+        extra = [self._build_function(f) for f in spec.get("functions", [])]
+        return self._finalize_node(node_id, spec, instructions, [classifier, *extra])
+
+    # -- new node type: collect with clinic-defined custom fields ------------
+    def _build_custom_collect_node(self, node_id: str, spec: dict, flow_manager) -> NodeConfig:
+        fields = spec["fields"]
+        next_node = spec["next"]
+        submit_name = spec.get("submit_name", f"submit_{node_id}")
+
+        q_lines = []
+        for f in fields:
+            suffix = "" if f.get("required") else " (optional — skip if the caller declines)"
+            q_lines.append(f"- {f['question']}{suffix}")
+        intro = spec.get(
+            "prompt",
+            "Ask the caller the following, one or two at a time, with brief acknowledgements:",
+        )
+        body = (
+            f"{intro}\n" + "\n".join(q_lines) +
+            f"\n\nRecord answers as you go. When you have the required answers, call "
+            f"{submit_name}. Optional questions may be skipped if the caller declines."
+        )
+        state = flow_manager.state if flow_manager is not None else {}
+        instructions = self._render_text(body, {**self.branding, **state})
+
+        properties = {}
+        required = []
+        for f in fields:
+            properties[f["field"]] = {"type": f.get("type", "string"), "description": f["question"]}
+            if f.get("required"):
+                required.append(f["field"])
+
+        async def handler(args, flow_manager, _fields=fields, _next=next_node):
+            collected = {}
+            for f in _fields:
+                key = f["field"]
+                val = args.get(key)
+                if isinstance(val, str):
+                    val = val.strip()
+                if val not in (None, ""):
+                    flow_manager.state[key] = val  # stored for extraction; also spoken in transcript
+                    collected[key] = val
+            return {"collected": collected}, self.build_node(_next, flow_manager)
+
+        submit = FlowsFunctionSchema(
+            name=submit_name,
+            description="Record the caller's answers to these questions.",
+            properties=properties,
+            required=required,
+            handler=handler,
+        )
+        extra = [self._build_function(f) for f in spec.get("functions", [])]
+        return self._finalize_node(node_id, spec, instructions, [submit, *extra])
 
     # -- function schemas + handlers ----------------------------------------
     def _build_function(self, fname: str) -> FlowsFunctionSchema:
