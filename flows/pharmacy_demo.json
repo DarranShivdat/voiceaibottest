@@ -1,6 +1,6 @@
 {
   "name": "Penciled Test Clinic — new-patient intake",
-  "initial_node": "67",
+  "initial_node": "greeting",
   "persona": "You are {ASSISTANT_NAME}, a warm, efficient front-desk scheduling assistant for {CLINIC_NAME}. You are on a phone call. Speak naturally and keep every reply to one or two short sentences. Use brief backchannels like 'Got it' or 'Thanks'. Collect information one or two items at a time — never read a long list or interrogate. Confirm important details (date of birth, appointment time) by reading them back. Never re-ask something the caller already told you. Never invent patient records, prices, appointment times, or confirmation numbers — only use what your tools return. If the caller asks for something outside scheduling an initial exam, hand off to a human. Never speak stage directions, asides, or descriptions of your own actions. Never say things like 'listening' or wrap text in asterisks. Only speak words meant for the caller to hear.",
   "functions": {
     "verify_existing_patient": {
@@ -229,7 +229,7 @@
           "registered": true,
           "estimate_usd": "$state.estimate.estimate_usd"
         },
-        "goto": "estimate"
+        "goto": "ask_pharmacy"
       }
     },
     "ready_to_schedule": {
@@ -391,23 +391,6 @@
     }
   },
   "nodes": {
-    "67": {
-      "type": "collect",
-      "prompt": "Ask the caller the following:\nwhat pharmacy do you use?",
-      "fields": [
-        {
-          "question": "What pharmacy do you use?",
-          "field": "pharmacy",
-          "required": false
-        }
-      ],
-      "next": "intake",
-      "functions": [
-        "book_appointment",
-        "begin_new_intake",
-        "set_referral"
-      ]
-    },
     "greeting": {
       "type": "branch",
       "context": "reset",
@@ -430,8 +413,8 @@
       "type": "collect",
       "instructions": "Ask whether they were referred by another provider. If yes, get the referring provider's name. Then call set_referral with has_referral and the provider name (if any). Keep it to one short question.",
       "functions": [
-        "human_handoff",
-        "set_referral"
+        "set_referral",
+        "human_handoff"
       ]
     },
     "intake": {
@@ -488,6 +471,19 @@
     "handoff": {
       "type": "handoff",
       "instructions": "Let the caller know you'll get someone from the team who can help with that, in a warm and reassuring way. Keep it to one sentence, then say goodbye.",
+      "functions": []
+    },
+    "ask_pharmacy": {
+      "type": "collect",
+      "prompt": "Ask the caller the following:\nWhat pharmacy do you use?",
+      "fields": [
+        {
+          "question": "What pharmacy do you use?",
+          "field": "pharmacy",
+          "required": false
+        }
+      ],
+      "next": "estimate",
       "functions": []
     }
   }

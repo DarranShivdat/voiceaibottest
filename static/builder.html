@@ -24,119 +24,371 @@
 
 <style>
   :root {
-    --ink:#0f172a; --muted:#64748b; --line:#e2e8f0; --head:#0f766e;
-    --accent:#f59e0b; --band:#f8fafc; --bg:#f1f5f9;
-    --say:#0ea5e9; --collect:#8b5cf6; --collectc:#d946ef; --branch:#f59e0b;
+    /* Penciled brand */
+    --brand:#5E78EE; --brand-600:#4a62d8; --brand-700:#3d53c4; --brand-50:#eef1fe; --brand-100:#e0e6fd;
+    /* neutrals (cool slate) */
+    --ink:#1c2333; --ink-soft:#3a4256; --muted:#7a8397; --line:#e7e9f2; --line-soft:#f0f2f8;
+    --bg:#f5f6fc; --panel:#ffffff;
+    /* node-type accents */
+    --say:#3b82f6; --collect:#8b5cf6; --collectc:#d946ef; --branch:#f59e0b;
     --categorize:#ec4899; --tool:#14b8a6; --handoff:#ef4444; --end:#10b981;
+    --ok:#10b981; --err:#ef4444;
+    --shadow-sm:0 1px 2px rgba(28,35,51,.06);
+    --shadow-md:0 4px 16px rgba(28,35,51,.10);
+    --shadow-lg:0 12px 40px rgba(28,35,51,.18);
   }
   * { box-sizing:border-box; }
   html, body, #root { height:100%; margin:0; }
   body {
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     color:var(--ink); background:var(--bg); overflow:hidden;
+    font-size:14px; line-height:1.5; -webkit-font-smoothing:antialiased;
   }
   .app { display:flex; flex-direction:column; height:100vh; }
 
-  /* Top bar */
+  /* ---- Top bar ---- */
   .topbar {
-    display:flex; align-items:center; gap:10px; padding:10px 16px;
-    background:#fff; border-bottom:1px solid var(--line); flex-wrap:wrap;
+    display:flex; align-items:center; gap:10px; padding:0 18px; height:60px;
+    background:var(--panel); border-bottom:1px solid var(--line); flex-shrink:0;
   }
-  .topbar h1 { font-size:16px; margin:0 12px 0 0; color:var(--head); letter-spacing:.4px; white-space:nowrap; }
-  .topbar .tag { font-size:11px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.6px; }
+  .brand { display:flex; align-items:center; gap:10px; margin-right:6px; }
+  .brand .mark {
+    width:30px; height:30px; border-radius:9px; flex-shrink:0;
+    background:linear-gradient(135deg,var(--brand),var(--brand-700));
+    display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; font-size:16px;
+    box-shadow:0 2px 6px rgba(94,120,238,.4);
+  }
+  .brand .title { font-size:15px; font-weight:700; color:var(--ink); letter-spacing:-.01em; white-space:nowrap; }
+  .brand .clinic { font-size:11px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.05em; }
   .topbar .spacer { flex:1; }
-  select, input[type=text], textarea {
-    font:inherit; color:var(--ink); border:1px solid var(--line); border-radius:8px;
-    padding:6px 9px; background:#fff;
+  .filepill {
+    display:flex; align-items:center; gap:8px; padding:5px 12px; border-radius:999px;
+    background:var(--brand-50); border:1px solid var(--brand-100); color:var(--brand-700);
+    font-size:12.5px; font-weight:650; max-width:340px;
   }
-  textarea { width:100%; resize:vertical; line-height:1.4; }
-  button {
-    font:inherit; font-weight:600; border:1px solid var(--line); border-radius:8px;
-    padding:6px 12px; background:#fff; cursor:pointer; color:var(--ink); white-space:nowrap;
-  }
-  button:hover { background:var(--band); }
-  button.primary { background:var(--head); border-color:var(--head); color:#fff; }
-  button.primary:hover { filter:brightness(1.06); }
-  button.danger { color:#b91c1c; border-color:#fecaca; background:#fef2f2; }
-  button:disabled { opacity:.5; cursor:not-allowed; }
+  .filepill .dot { width:7px; height:7px; border-radius:50%; background:var(--brand); flex-shrink:0; }
+  .filepill .fn { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .filepill.unsaved { background:#fff7ed; border-color:#fed7aa; color:#c2620c; }
+  .filepill.unsaved .dot { background:#f59e0b; }
 
-  /* Body layout */
+  .divider { width:1px; height:28px; background:var(--line); margin:0 2px; }
+
+  /* ---- inputs & buttons ---- */
+  select, input[type=text], textarea {
+    font:inherit; color:var(--ink); border:1px solid var(--line); border-radius:9px;
+    padding:9px 11px; background:#fff; transition:border-color .12s, box-shadow .12s;
+  }
+  select:focus, input[type=text]:focus, textarea:focus {
+    outline:none; border-color:var(--brand); box-shadow:0 0 0 3px var(--brand-50);
+  }
+  textarea { width:100%; resize:vertical; line-height:1.5; }
+  button {
+    font:inherit; font-size:13.5px; font-weight:650; border:1px solid var(--line); border-radius:9px;
+    padding:8px 14px; background:#fff; cursor:pointer; color:var(--ink-soft); white-space:nowrap;
+    transition:background .12s, border-color .12s, box-shadow .12s, color .12s;
+    display:inline-flex; align-items:center; gap:6px;
+  }
+  button:hover { background:var(--line-soft); border-color:#d7dbe8; }
+  button.primary { background:var(--brand); border-color:var(--brand); color:#fff; box-shadow:0 2px 6px rgba(94,120,238,.3); }
+  button.primary:hover { background:var(--brand-600); border-color:var(--brand-600); }
+  button.ghost { border-color:transparent; background:transparent; color:var(--brand-700); }
+  button.ghost:hover { background:var(--brand-50); }
+  button.danger { color:#b91c1c; border-color:#fecaca; background:#fef2f2; }
+  button.danger:hover { background:#fee2e2; }
+  button.tiny { padding:4px 8px; font-size:12px; border-radius:7px; }
+  button:disabled { opacity:.45; cursor:not-allowed; box-shadow:none; }
+
+  /* ---- body layout ---- */
   .body { flex:1; display:flex; min-height:0; }
+
+  /* palette */
   .palette {
-    width:190px; background:#fff; border-right:1px solid var(--line); padding:12px;
+    width:210px; background:var(--panel); border-right:1px solid var(--line); padding:16px 14px;
     overflow:auto; flex-shrink:0;
   }
-  .palette h2, .panel h2 {
-    font-size:11px; text-transform:uppercase; letter-spacing:.6px; color:var(--head);
-    margin:2px 0 8px;
+  .side-h {
+    font-size:11px; text-transform:uppercase; letter-spacing:.07em; color:var(--muted);
+    font-weight:700; margin:0 0 10px; padding-left:2px;
   }
   .palette .addbtn {
-    display:flex; align-items:center; gap:8px; width:100%; text-align:left;
-    margin-bottom:6px; padding:7px 9px; font-size:13px;
+    display:flex; align-items:center; gap:10px; width:100%; text-align:left; justify-content:flex-start;
+    margin-bottom:7px; padding:9px 11px; font-size:13.5px; color:var(--ink); font-weight:600;
+    border-color:var(--line);
   }
-  .swatch { width:11px; height:11px; border-radius:3px; flex-shrink:0; }
+  .palette .addbtn:hover { border-color:var(--brand-100); background:var(--brand-50); }
+  .swatch { width:12px; height:12px; border-radius:4px; flex-shrink:0; }
+  .legend { margin-top:22px; }
+  .legend-row { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted); margin-bottom:8px; }
+  .legend-line { width:26px; height:0; border-top:2px solid #94a3b8; flex-shrink:0; }
+  .legend-line.dashed { border-top-style:dashed; }
+  .legend-line.solid { border-top-color:#64748b; }
+
   .canvas { flex:1; min-width:0; position:relative; }
 
-  /* Right properties panel */
+  /* right panel */
   .panel {
-    width:340px; background:#fff; border-left:1px solid var(--line); padding:14px;
+    width:360px; background:var(--panel); border-left:1px solid var(--line); padding:18px 18px 40px;
     overflow:auto; flex-shrink:0;
   }
-  .panel .empty { color:var(--muted); font-size:13px; margin-top:20px; text-align:center; }
-  .field { margin-bottom:12px; }
-  .field label { display:block; font-size:12px; font-weight:650; color:#334155; margin-bottom:4px; }
-  .field .hint { font-size:11px; color:var(--muted); font-weight:400; }
-  .row { display:flex; gap:6px; align-items:center; }
-  .row > input[type=text] { flex:1; min-width:0; }
-  .chk { display:flex; align-items:center; gap:6px; font-size:13px; font-weight:400; margin-bottom:4px; }
+  .panel-h { display:flex; align-items:center; gap:8px; margin:0 0 16px; }
+  .panel-h h2 { font-size:15px; font-weight:700; margin:0; color:var(--ink); }
+  .panel .empty {
+    color:var(--muted); font-size:13.5px; margin-top:60px; text-align:center; padding:0 20px; line-height:1.6;
+  }
+  .panel .empty .big { display:block; font-size:34px; margin-bottom:12px; opacity:.5; }
+
+  .field { margin-bottom:16px; }
+  .field > label { display:block; font-size:12.5px; font-weight:650; color:var(--ink-soft); margin-bottom:6px; }
+  .field .hint { display:block; font-size:11.5px; color:var(--muted); font-weight:400; margin-top:5px; line-height:1.45; }
+  .field .hint.inline { display:inline; margin-top:0; }
+  .full { width:100%; }
+  .row { display:flex; gap:8px; align-items:center; }
+  .row > input[type=text], .row > select { flex:1; min-width:0; }
+  .chk { display:flex; align-items:center; gap:8px; font-size:13.5px; font-weight:400; color:var(--ink-soft); cursor:pointer; }
+  .chk input { accent-color:var(--brand); width:15px; height:15px; }
+
   .badge {
-    display:inline-block; font-size:11px; font-weight:700; color:#fff; padding:2px 8px;
-    border-radius:999px; letter-spacing:.3px;
+    display:inline-flex; align-items:center; font-size:11px; font-weight:700; color:#fff; padding:3px 10px;
+    border-radius:999px; letter-spacing:.02em; text-transform:capitalize;
   }
-  .subcard { border:1px solid var(--line); border-radius:8px; padding:9px; margin-bottom:8px; background:var(--band); }
-  .subcard .row { margin-bottom:5px; }
-  .smalllbl { font-size:11px; color:var(--muted); margin-bottom:2px; }
-  .fnlist { max-height:150px; overflow:auto; border:1px solid var(--line); border-radius:8px; padding:8px; }
+  .initial-tag {
+    display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:700; color:var(--brand-700);
+    background:var(--brand-50); border:1px solid var(--brand-100); padding:4px 10px; border-radius:999px;
+  }
 
-  /* Custom node */
+  .subcard { border:1px solid var(--line); border-radius:11px; padding:12px; margin-bottom:10px; background:#fbfcfe; }
+  .subcard .row { margin-bottom:8px; }
+  .subcard .row:last-child { margin-bottom:0; }
+  .smalllbl { font-size:11px; font-weight:650; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; margin-bottom:4px; }
+  .fnlist { border:1px solid var(--line); border-radius:11px; padding:10px 12px; background:#fbfcfe; }
+  .fnlist .chk { padding:3px 0; }
+  .note {
+    font-size:12px; color:var(--ink-soft); background:var(--brand-50); border:1px solid var(--brand-100);
+    border-radius:10px; padding:11px 12px; line-height:1.5;
+  }
+  .note code { background:#fff; border:1px solid var(--brand-100); border-radius:4px; padding:1px 5px; font-size:11.5px; }
+  .note.plain { background:var(--line-soft); border-color:var(--line); }
+  .section-sep { height:1px; background:var(--line); margin:20px 0; }
+
+  /* ---- custom React Flow node ---- */
   .rf-node {
-    background:#fff; border:2px solid var(--line); border-radius:10px; padding:9px 12px;
-    min-width:150px; max-width:220px; box-shadow:0 1px 3px rgba(15,23,42,.08);
+    background:#fff; border:1px solid var(--line); border-top-width:3px; border-radius:12px;
+    padding:11px 13px 12px; min-width:168px; max-width:230px; box-shadow:var(--shadow-sm);
+    transition:box-shadow .12s, transform .12s;
   }
-  .rf-node.sel { box-shadow:0 0 0 3px rgba(15,118,110,.35); }
-  .rf-node .nid { font-weight:700; font-size:13px; color:var(--ink); word-break:break-word; }
-  .rf-node .ntype { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; margin-top:2px; }
-  .rf-node .ninit { font-size:10px; color:var(--accent); font-weight:700; margin-top:3px; }
-  .rf-node .nprev { font-size:11px; color:var(--muted); margin-top:5px; line-height:1.3;
+  .rf-node:hover { box-shadow:var(--shadow-md); }
+  .rf-node.sel { box-shadow:0 0 0 3px var(--brand-100), var(--shadow-md); }
+  .rf-node .ntop { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:4px; }
+  .rf-node .ntype {
+    font-size:9.5px; font-weight:800; text-transform:uppercase; letter-spacing:.06em;
+    padding:2px 7px; border-radius:999px; color:#fff;
+  }
+  .rf-node .ninit { font-size:13px; }
+  .rf-node .nid { font-weight:700; font-size:14px; color:var(--ink); word-break:break-word; letter-spacing:-.01em; }
+  .rf-node .nprev { font-size:11.5px; color:var(--muted); margin-top:6px; line-height:1.4;
                     display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
-  .react-flow__handle { width:9px; height:9px; background:var(--head); border:2px solid #fff; }
+  .react-flow__handle { width:10px; height:10px; background:var(--brand); border:2px solid #fff; }
+  .react-flow__edge-path { stroke-width:1.6; }
+  .react-flow__controls { box-shadow:var(--shadow-md); border-radius:10px; overflow:hidden; border:1px solid var(--line); }
+  .react-flow__controls-button { border-bottom:1px solid var(--line-soft); }
+  .react-flow__minimap { border-radius:10px; overflow:hidden; box-shadow:var(--shadow-sm); border:1px solid var(--line); }
+  .react-flow__attribution { display:none; }
 
-  /* Toast */
+  /* ---- toast ---- */
   .toast {
-    position:fixed; bottom:18px; left:50%; transform:translateX(-50%);
-    background:var(--ink); color:#fff; padding:9px 16px; border-radius:8px; font-size:13px;
-    box-shadow:0 4px 14px rgba(0,0,0,.25); z-index:50; max-width:80vw;
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+    display:flex; align-items:center; gap:10px;
+    background:#fff; color:var(--ink); padding:12px 18px; border-radius:12px; font-size:13.5px; font-weight:600;
+    box-shadow:var(--shadow-lg); z-index:100; max-width:80vw; border:1px solid var(--line);
+    animation:toastIn .22s cubic-bezier(.2,.8,.2,1);
   }
-  .toast.err { background:#b91c1c; }
-  .dim-note { font-size:11px; color:var(--muted); background:var(--band); border:1px dashed var(--line);
-              border-radius:8px; padding:8px; margin-bottom:12px; }
-  a.navlink { color:var(--head); font-size:12px; text-decoration:none; font-weight:600; }
-  a.navlink:hover { text-decoration:underline; }
+  @keyframes toastIn { from { opacity:0; transform:translate(-50%,12px); } to { opacity:1; transform:translate(-50%,0); } }
+  .toast .toast-ic {
+    width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    color:#fff; font-size:13px; font-weight:800; flex-shrink:0; background:var(--ok);
+  }
+  .toast.err .toast-ic { background:var(--err); }
+
+  /* ---- modal ---- */
+  .overlay {
+    position:fixed; inset:0; background:rgba(28,35,51,.45); backdrop-filter:blur(2px);
+    display:flex; align-items:center; justify-content:center; z-index:80; padding:24px;
+    animation:fadeIn .15s ease;
+  }
+  @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+  .modal {
+    background:var(--panel); border-radius:18px; box-shadow:var(--shadow-lg); width:100%; max-width:560px;
+    max-height:85vh; display:flex; flex-direction:column; overflow:hidden;
+    animation:modalIn .2s cubic-bezier(.2,.8,.2,1);
+  }
+  @keyframes modalIn { from { opacity:0; transform:translateY(10px) scale(.98); } to { opacity:1; transform:none; } }
+  .modal.sm { max-width:440px; }
+  .modal-head { display:flex; align-items:center; justify-content:space-between; padding:20px 24px 14px; }
+  .modal-head h3 { margin:0; font-size:18px; font-weight:700; letter-spacing:-.01em; }
+  .modal-head .sub { font-size:13px; color:var(--muted); font-weight:400; margin-top:3px; }
+  .modal-x {
+    border:none; background:transparent; color:var(--muted); font-size:20px; line-height:1; padding:4px 8px;
+    border-radius:8px; cursor:pointer;
+  }
+  .modal-x:hover { background:var(--line-soft); color:var(--ink); }
+  .modal-body { padding:4px 24px 8px; overflow:auto; }
+  .modal-foot { display:flex; justify-content:flex-end; gap:10px; padding:16px 24px 22px; }
+
+  /* open-flow cards */
+  .flow-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; padding-bottom:8px; }
+  .flow-card {
+    text-align:left; border:1px solid var(--line); border-radius:14px; padding:16px; background:#fff; cursor:pointer;
+    transition:border-color .12s, box-shadow .12s, transform .1s; display:block;
+  }
+  .flow-card:hover { border-color:var(--brand); box-shadow:var(--shadow-md); transform:translateY(-1px); background:#fff; }
+  .flow-card .fc-icon {
+    width:36px; height:36px; border-radius:10px; background:var(--brand-50); color:var(--brand-700);
+    display:flex; align-items:center; justify-content:center; font-size:18px; margin-bottom:10px;
+  }
+  .flow-card .fc-title { font-size:14px; font-weight:700; color:var(--ink); margin-bottom:4px; line-height:1.35; }
+  .flow-card .fc-file { font-size:12px; color:var(--muted); font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+  .flow-empty { text-align:center; color:var(--muted); padding:36px 12px; font-size:13.5px; }
+
+  .prefix { display:flex; align-items:center; }
+  .prefix input { border-radius:9px 0 0 9px; border-right:none; flex:1; }
+  .prefix .suffix {
+    padding:9px 12px; background:var(--line-soft); border:1px solid var(--line); border-left:none;
+    border-radius:0 9px 9px 0; color:var(--muted); font-size:13px; font-weight:600;
+  }
+  a.navlink { color:var(--brand-700); font-size:13px; text-decoration:none; font-weight:650; padding:6px 8px; border-radius:8px; }
+  a.navlink:hover { background:var(--brand-50); }
+
+  /* icon alignment */
+  svg.ic { display:block; }
+  button svg.ic { flex-shrink:0; }
+  .ninit { display:inline-flex; align-items:center; color:var(--brand); }
+  .empty .big svg.ic { opacity:.55; }
+
+  /* orphan / not-connected marker on a node card */
+  .norphan {
+    display:inline-flex; align-items:center; gap:4px; margin-top:6px;
+    font-size:10.5px; font-weight:700; color:#c2620c;
+  }
+  .norphan svg.ic { color:#e08d2f; }
+
+  /* warning note (unconnected step) */
+  .note.warn { background:#fff7ed; border-color:#fed7aa; color:#9a3412; display:flex; gap:8px; align-items:flex-start; }
+  .note.warn svg.ic { flex-shrink:0; margin-top:1px; }
+
+  /* palette tip */
+  .tip {
+    display:flex; gap:8px; align-items:flex-start; font-size:11.5px; color:var(--ink-soft);
+    background:var(--brand-50); border:1px solid var(--brand-100); border-radius:10px;
+    padding:9px 10px; margin-bottom:14px; line-height:1.45;
+  }
+  .tip svg.ic { color:var(--brand); margin-top:1px; }
+  .palette .adv-h { display:flex; align-items:center; gap:6px; }
+  .palette .adv-sub { font-size:11px; color:var(--muted); margin:-4px 0 10px; padding-left:2px; }
+
+  /* ---- insert-on-edge affordance (React Flow edge label layer) ---- */
+  .edge-lyr {
+    position:absolute; pointer-events:all; display:flex; flex-direction:column;
+    align-items:center; gap:4px; z-index:5;
+  }
+  .edge-tag {
+    background:#fff; border:1px solid var(--line); color:#4a5268;
+    font-size:10.5px; font-weight:650; padding:1px 7px; border-radius:6px; white-space:nowrap;
+  }
+  .edge-insert {
+    display:inline-flex; align-items:center; gap:0; overflow:hidden;
+    height:24px; padding:0 6px; border-radius:999px; cursor:pointer;
+    background:var(--brand); border:2px solid #fff; color:#fff; font-weight:700; font-size:12px;
+    box-shadow:0 2px 8px rgba(94,120,238,.45); transition:padding .12s, background .12s;
+  }
+  .edge-insert:hover { background:var(--brand-600); }
+  .edge-insert .ei-plus { font-size:16px; line-height:1; }
+  .edge-insert .ei-txt {
+    max-width:0; opacity:0; overflow:hidden; white-space:nowrap; transition:max-width .16s, opacity .12s, margin .12s;
+  }
+  .edge-insert:hover .ei-txt { max-width:90px; opacity:1; margin-left:5px; }
 </style>
 </head>
 <body>
 <div id="root"></div>
 
 <script type="module">
-import React, { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import htm from "htm";
 import ReactFlow, {
   Background, Controls, MiniMap, Handle, Position,
+  BaseEdge, EdgeLabelRenderer, getSmoothStepPath,
   applyNodeChanges, applyEdgeChanges,
 } from "reactflow";
 
 const html = htm.bind(React.createElement);
+
+/* ---- inline SVG icons (no emoji → no tofu boxes on any platform) ---------- */
+function Icon({ name, size }) {
+  const a = {
+    className: "ic", width: size || 16, height: size || 16, viewBox: "0 0 24 24",
+    fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round",
+  };
+  switch (name) {
+    case "open": // folder
+      return html`<svg ...${a}><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`;
+    case "plus":
+      return html`<svg ...${a}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`;
+    case "settings": // sliders
+      return html`<svg ...${a}><line x1="4" x2="4" y1="21" y2="14"/><line x1="4" x2="4" y1="10" y2="3"/><line x1="12" x2="12" y1="21" y2="12"/><line x1="12" x2="12" y1="8" y2="3"/><line x1="20" x2="20" y1="21" y2="16"/><line x1="20" x2="20" y1="12" y2="3"/><line x1="2" x2="6" y1="14" y2="14"/><line x1="10" x2="14" y1="8" y2="8"/><line x1="18" x2="22" y1="16" y2="16"/></svg>`;
+    case "flag":
+      return html`<svg ...${a}><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>`;
+    case "file": // flow document
+      return html`<svg ...${a}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>`;
+    case "flow": // branching diagram
+      return html`<svg ...${a}><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>`;
+    case "cursor":
+      return html`<svg ...${a}><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51z"/></svg>`;
+    case "warn":
+      return html`<svg ...${a}><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`;
+    default:
+      return null;
+  }
+}
+
+/* ---- rename a node id, rewriting every routing reference to it ------------- */
+// Rename is a user edit (never runs on an unedited load→save), so it may
+// restructure freely — but it MUST keep routing intact by rewriting each place
+// the old id is referenced: node.next / node.fallback / bucket.next and every
+// function goto (plain, guard, route, and {cond,then,else}).
+function rewriteGoto(goto, oldId, newId) {
+  if (typeof goto === "string") return goto === oldId ? newId : goto;
+  if (goto && typeof goto === "object" && "cond" in goto) {
+    return { ...goto, then: rewriteGoto(goto.then, oldId, newId), else: rewriteGoto(goto.else, oldId, newId) };
+  }
+  return goto;
+}
+function rewriteRoutes(routes, oldId, newId) {
+  (routes || []).forEach((r) => {
+    if ("goto" in r) r.goto = rewriteGoto(r.goto, oldId, newId);
+    rewriteRoutes(r.routes, oldId, newId);
+  });
+}
+function renameNodeInFlow(flow, oldId, newId, posMap) {
+  // preserve key order: rename the key in place
+  flow.nodes = Object.fromEntries(
+    Object.entries(flow.nodes).map(([k, v]) => [k === oldId ? newId : k, v])
+  );
+  if (flow.initial_node === oldId) flow.initial_node = newId;
+  Object.values(flow.nodes).forEach((n) => {
+    if (n.next === oldId) n.next = newId;
+    if (n.fallback === oldId) n.fallback = newId;
+    (n.buckets || []).forEach((b) => { if (b.next === oldId) b.next = newId; });
+  });
+  Object.values(flow.functions || {}).forEach((fd) => {
+    const b = fd.behavior;
+    if (!b) return;
+    if ("goto" in b) b.goto = rewriteGoto(b.goto, oldId, newId);
+    (b.guards || []).forEach((g) => { if ("goto" in g) g.goto = rewriteGoto(g.goto, oldId, newId); });
+    rewriteRoutes(b.routes, oldId, newId);
+  });
+  if (posMap && posMap[oldId]) { posMap[newId] = posMap[oldId]; delete posMap[oldId]; }
+}
 
 /* ---- node type metadata --------------------------------------------------- */
 const NODE_TYPES = [
@@ -185,74 +437,135 @@ function behaviorTargets(behavior) {
   return acc;
 }
 
+// A function behavior is a "simple linear goto" only when it routes to exactly
+// one node, unconditionally: a plain string `goto`, no guards, no conditional
+// routes, no {cond,...}. Returns that target id, or null. These are the routes
+// we can safely insert into by editing one value.
+function simpleLinearGoto(behavior) {
+  if (!behavior) return null;
+  if (behavior.guards && behavior.guards.length) return null;
+  if (behavior.routes) return null;
+  return typeof behavior.goto === "string" ? behavior.goto : null;
+}
+
 function computeEdges(flow) {
   const nodeIds = new Set(Object.keys(flow.nodes || {}));
+  // How many nodes expose each function — only single-use functions are safe to
+  // rewire (editing a shared function's goto would reroute every node using it).
+  const fnUsage = {};
+  Object.values(flow.nodes || {}).forEach((n) =>
+    (n.functions || []).forEach((fn) => { fnUsage[fn] = (fnUsage[fn] || 0) + 1; }));
+
   const edges = [];
   const seen = new Set();
-  const add = (source, target, label, dashed) => {
+  // opts: { dashed, insertable, via }  — `via` describes how to rewire on insert
+  const add = (source, target, label, opts = {}) => {
     if (!target || !nodeIds.has(target)) return;
     const id = `${source}=>${target}#${label}`;
     if (seen.has(id)) return;
     seen.add(id);
+    const dashed = !!opts.dashed;
     edges.push({
-      id, source, target, label,
-      type: "smoothstep", animated: false,
-      style: dashed ? { stroke: "#94a3b8", strokeDasharray: "5 4" } : { stroke: "#64748b" },
-      labelStyle: { fontSize: 10, fill: "#475569" },
-      labelBgStyle: { fill: "#fff", fillOpacity: 0.85 },
-      markerEnd: { type: "arrowclosed", color: dashed ? "#94a3b8" : "#64748b" },
+      id, source, target,
+      type: "flowEdge",
+      style: dashed
+        ? { stroke: "#a9b1c7", strokeDasharray: "6 4", strokeWidth: 1.6 }
+        : { stroke: "#5E78EE", strokeWidth: 1.8 },
+      markerEnd: { type: "arrowclosed", color: dashed ? "#a9b1c7" : "#5E78EE", width: 16, height: 16 },
+      data: { label, source, target, insertable: !!opts.insertable, via: opts.via || null },
     });
   };
 
   for (const [id, node] of Object.entries(flow.nodes || {})) {
     const vt = visualType(node);
     if (node.type === "categorize") {
-      (node.buckets || []).forEach((b) => add(id, b.next, b.name || "bucket"));
-      add(id, node.fallback, "fallback", true);
+      // Each bucket target is a node-owned linear route → insertable.
+      (node.buckets || []).forEach((b, i) =>
+        add(id, b.next, b.name || "bucket", { insertable: true, via: { type: "bucket", index: i } }));
+      // Fallback is a branching/default route → not insertable yet.
+      add(id, node.fallback, "fallback", { dashed: true });
     } else if (vt === "collect-custom") {
-      add(id, node.next, "next");
+      add(id, node.next, "next", { insertable: true, via: { type: "next" } });
     }
-    // Every node's exposed functions imply routing via their behaviors.
+    // Routing implied by exposed functions.
     (node.functions || []).forEach((fn) => {
       const def = (flow.functions || {})[fn];
       if (!def) return;
-      behaviorTargets(def.behavior).forEach((t) => add(id, t, fn, true));
+      const linear = simpleLinearGoto(def.behavior);
+      if (linear && fnUsage[fn] === 1) {
+        // Single unconditional target, used only here → a linear route we can
+        // insert into by editing this function's goto.
+        add(id, linear, fn, { insertable: true, via: { type: "goto", fn } });
+      } else {
+        // Conditional / multi-target / shared → branching (dashed, not insertable).
+        behaviorTargets(def.behavior).forEach((t) => add(id, t, fn, { dashed: true }));
+      }
     });
   }
   return edges;
 }
 
-/* ---- auto layout (editor-only; positions are NOT written to the flow) ------ */
-function layout(flow, edges) {
+/* ---- auto layout (editor-only; positions are NOT written to the flow) ------
+   Layered top-to-bottom layout: BFS assigns a depth level from the initial
+   node, then a few barycenter sweeps order each row to minimise edge crossings.
+   Rows are centred so the tree reads cleanly downward (handles are top/bottom). */
+const H_GAP = 250, V_GAP = 165, PAD = 60;
+function layout(flow) {
   const ids = Object.keys(flow.nodes || {});
-  const pos = {};
-  const level = {};
-  const adj = {};
-  ids.forEach((i) => (adj[i] = []));
+  if (!ids.length) return {};
+  const edges = computeEdges(flow);
+  const adj = {}; ids.forEach((i) => (adj[i] = []));
   edges.forEach((e) => { if (adj[e.source]) adj[e.source].push(e.target); });
 
+  // BFS depth from the initial node (fallback: first node)
+  const level = {};
   const start = flow.initial_node && flow.nodes[flow.initial_node] ? flow.initial_node : ids[0];
-  const queue = [];
-  if (start) { level[start] = 0; queue.push(start); }
+  const queue = [start]; level[start] = 0;
   while (queue.length) {
     const cur = queue.shift();
     for (const nxt of adj[cur] || []) {
       if (level[nxt] === undefined) { level[nxt] = level[cur] + 1; queue.push(nxt); }
     }
   }
-  let orphan = 0;
-  ids.forEach((i) => { if (level[i] === undefined) level[i] = -1; });
+  // Unreached nodes (orphans) get their own row beneath everything else.
+  let maxLvl = 0;
+  ids.forEach((i) => { if (level[i] !== undefined) maxLvl = Math.max(maxLvl, level[i]); });
+  ids.forEach((i) => { if (level[i] === undefined) level[i] = maxLvl + 1; });
+
+  // group by level, preserving insertion order as the initial ordering
   const byLevel = {};
-  ids.forEach((i) => {
-    const lv = level[i] === -1 ? (orphan++, 0) : level[i]; // orphans stacked at far right col below
-    (byLevel[level[i]] = byLevel[level[i]] || []).push(i);
+  ids.forEach((i) => { (byLevel[level[i]] = byLevel[level[i]] || []).push(i); });
+  const levels = Object.keys(byLevel).map(Number).sort((a, b) => a - b);
+
+  // parents for barycenter (only edges that go "down" a level)
+  const parents = {}; ids.forEach((i) => (parents[i] = []));
+  edges.forEach((e) => {
+    if (parents[e.target] && level[e.source] < level[e.target]) parents[e.target].push(e.source);
   });
-  const maxLevel = Math.max(0, ...ids.map((i) => level[i]).filter((n) => n >= 0));
-  Object.entries(byLevel).forEach(([lv, group]) => {
-    const l = parseInt(lv, 10);
-    const col = l === -1 ? maxLevel + 1 : l;
-    group.forEach((i, idx) => {
-      pos[i] = { x: col * 280 + 40, y: idx * 120 + 40 };
+
+  const order = {};
+  levels.forEach((l) => byLevel[l].forEach((id, idx) => { order[id] = idx; }));
+  for (let sweep = 0; sweep < 4; sweep++) {
+    levels.forEach((l) => {
+      if (l === levels[0]) return;
+      const bc = {};
+      byLevel[l].forEach((id) => {
+        const ps = parents[id];
+        bc[id] = ps.length ? ps.reduce((a, p) => a + order[p], 0) / ps.length : order[id];
+      });
+      byLevel[l].sort((x, y) => (bc[x] - bc[y]) || (order[x] - order[y]));
+      byLevel[l].forEach((id, idx) => { order[id] = idx; });
+    });
+  }
+
+  const maxWidth = Math.max(...levels.map((l) => byLevel[l].length));
+  const pos = {};
+  levels.forEach((l) => {
+    const row = byLevel[l];
+    const n = row.length;
+    row.forEach((id, idx) => {
+      const x = (idx - (n - 1) / 2) * H_GAP + (maxWidth * H_GAP) / 2 + PAD;
+      pos[id] = { x, y: l * V_GAP + PAD };
     });
   });
   return pos;
@@ -262,19 +575,49 @@ function layout(flow, edges) {
 function FlowNode({ id, data }) {
   const node = data.node;
   const vt = visualType(node);
-  const preview = node.instructions || node.prompt ||
-    (Array.isArray(node.fields) && node.fields.map((f) => f.question).join(" · ")) || "";
+  const color = colorFor(node);
+  // For a custom-collect step, show intro + questions joined WITH a space so it
+  // reads "…the following: which pharmacy…" (not "following:which pharmacy").
+  const questions = Array.isArray(node.fields)
+    ? node.fields.map((f) => f.question).filter(Boolean).join(" · ") : "";
+  const preview = vt === "collect-custom"
+    ? [node.prompt, questions].filter(Boolean).join(" ")
+    : (node.instructions || node.prompt || "");
   return html`
-    <div class=${"rf-node" + (data.selected ? " sel" : "")} style=${{ borderColor: colorFor(node) }}>
+    <div class=${"rf-node" + (data.selected ? " sel" : "")} style=${{ borderTopColor: color }}>
       <${Handle} type="target" position=${Position.Top} />
+      <div class="ntop">
+        <span class="ntype" style=${{ background: color }}>${vt.replace("-custom", " ·")}</span>
+        ${data.isInitial && html`<span class="ninit" title="Start of the call"><${Icon} name="flag" size=${13} /></span>`}
+      </div>
       <div class="nid">${id}</div>
-      <div class="ntype" style=${{ color: colorFor(node) }}>${vt}</div>
-      ${data.isInitial && html`<div class="ninit">● initial node</div>`}
+      ${data.orphan && html`<div class="norphan"><${Icon} name="warn" size=${12} /> not connected</div>`}
       ${preview && html`<div class="nprev">${preview}</div>`}
       <${Handle} type="source" position=${Position.Bottom} />
     </div>`;
 }
 const nodeTypes = { flowNode: FlowNode };
+
+/* ---- custom edge: draws the route + an "Insert step here" affordance ------ */
+function FlowEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, style, markerEnd, data }) {
+  const [edgePath, labelX, labelY] = getSmoothStepPath({
+    sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition,
+  });
+  const d = data || {};
+  return html`
+    <${BaseEdge} id=${id} path=${edgePath} style=${style} markerEnd=${markerEnd} />
+    <${EdgeLabelRenderer}>
+      <div class="edge-lyr" style=${{ transform: `translate(-50%,-50%) translate(${labelX}px,${labelY}px)` }}>
+        ${d.label && html`<span class="edge-tag">${d.label}</span>`}
+        ${d.insertable && html`
+          <button class="edge-insert" title="Insert a step here"
+            onClick=${(e) => { e.stopPropagation(); d.onInsert && d.onInsert(d.edgeInfo); }}>
+            <span class="ei-plus">+</span><span class="ei-txt">Insert step</span>
+          </button>`}
+      </div>
+    <//>`;
+}
+const edgeTypes = { flowEdge: FlowEdge };
 
 /* ---- blank flow scaffold for CREATE --------------------------------------- */
 const DEFAULT_PERSONA =
@@ -320,6 +663,31 @@ function newNodeSkeleton(vtype) {
   }
 }
 
+// The stem we use as a default id when a node is dropped from the palette.
+function baseIdFor(vtype) {
+  return vtype === "collect-custom" ? "collect" : vtype;
+}
+// Clean, readable default ids: collect_1, say_1, … (the user renames these to
+// something meaningful, e.g. ask_pharmacy, via the Step name field).
+function uniqueId(flow, base) {
+  let i = 1;
+  while (flow.nodes[`${base}_${i}`]) i++;
+  return `${base}_${i}`;
+}
+
+// Accept a plain key ("pharmacy"); if the user pastes state["pharmacy"],
+// state['pharmacy'], state.pharmacy, or ["pharmacy"], reduce it to the bare key.
+function normalizeFieldKey(raw) {
+  if (!raw) return raw;
+  let s = String(raw).trim();
+  let m =
+    s.match(/^state\s*\[\s*['"]?([A-Za-z0-9_]+)['"]?\s*\]$/) ||
+    s.match(/^state\s*\.\s*([A-Za-z0-9_]+)$/) ||
+    s.match(/^\[\s*['"]?([A-Za-z0-9_]+)['"]?\s*\]$/) ||
+    s.match(/^['"]([A-Za-z0-9_]+)['"]$/);
+  return m ? m[1] : s;
+}
+
 /* ========================================================================== */
 function App() {
   // The parsed flow config is the single source of truth. We mutate it in place
@@ -336,26 +704,90 @@ function App() {
   const [showFlowSettings, setShowFlowSettings] = useState(false);
 
   const [flowList, setFlowList] = useState([]);
-  const [pickFile, setPickFile] = useState("");
-  const [loadedName, setLoadedName] = useState("");
-  const [saveName, setSaveName] = useState("");
+  const [loadedName, setLoadedName] = useState("");   // file stem currently loaded/saved
+  const [dirty, setDirty] = useState(false);          // unsaved changes since last load/save
+  const [viewKey, setViewKey] = useState(0);          // bump to remount React Flow → fresh fitView
   const [toast, setToast] = useState(null);
 
+  // modal state: only one open at a time
+  const [showOpen, setShowOpen] = useState(false);
+  const [showSave, setShowSave] = useState(false);
+  const [confirmBox, setConfirmBox] = useState(null); // {title, message, confirmLabel, onConfirm}
+
+  const toastTimer = useRef(null);
   const showToast = useCallback((msg, err) => {
     setToast({ msg, err });
-    setTimeout(() => setToast(null), 3200);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 3200);
   }, []);
+
+  // A single place to mark the flow as edited so the file pill reflects it.
+  const markDirty = useCallback(() => { setDirty(true); bump(); }, [bump]);
+
+  /* ---- insert a NEW step INTO a linear route (A→B becomes A→new→B) --------
+     Only called for insertable (solid) edges. Creates a custom-collect step —
+     the type that linearly continues a call via its own `next` — and rewires:
+       upstream → new   (edit the edge's own routing value)
+       new → downstream (the inserted step's `next`)
+     so the flow actually reaches the new step on a call. */
+  const insertStep = useCallback((edgeInfo) => {
+    const flow = flowRef.current;
+    if (!flow || !edgeInfo || !edgeInfo.via) {
+      showToast("Inserting into branching (function) routes is coming soon — for now, add steps along the main flow.", true);
+      return;
+    }
+    const { source, target, via } = edgeInfo;
+    const id = uniqueId(flow, "collect");
+    const nn = newNodeSkeleton("collect-custom");
+    nn.next = target || "";                 // new → original downstream
+    flow.nodes[id] = nn;
+    if (via.type === "next") flow.nodes[source].next = id;
+    else if (via.type === "bucket") flow.nodes[source].buckets[via.index].next = id;
+    else if (via.type === "goto") {
+      // REPLACE the function's single linear goto in place — the goto lives on
+      // `behavior`, and a function must never end up with more than one goto.
+      const def = flow.functions[via.fn];
+      if (!def || !def.behavior || typeof def.behavior.goto !== "string") {
+        // Guard: only plain string gotos are insertable (computeEdges enforces
+        // this); anything else means stale edge data — bail without mutating.
+        delete flow.nodes[id];
+        showToast("Inserting into branching (function) routes is coming soon — for now, add steps along the main flow.", true);
+        return;
+      }
+      def.behavior.goto = id;
+      // Remove any stray function-level "goto" a previous buggy insert left
+      // behind — the engine only reads behavior.goto; a second goto is invalid.
+      delete def.goto;
+    }
+    // re-flow the layout so the new step slots cleanly between the two
+    posRef.current = {};
+    setSelected(id);
+    setShowFlowSettings(false);
+    setDirty(true);
+    setViewKey((k) => k + 1);
+    bump();
+    showToast(`Inserted a new step between "${source}" and "${target}" — edit it in the panel`);
+  }, [bump, showToast]);
 
   /* rebuild the React Flow view from the current flow config */
   const rebuild = useCallback((relayout) => {
     const flow = flowRef.current;
     if (!flow) { setRfNodes([]); setRfEdges([]); return; }
-    const edges = computeEdges(flow);
+    // attach the live insert handler + rewire descriptor to each edge
+    const edges = computeEdges(flow).map((e) => ({
+      ...e,
+      data: {
+        ...e.data,
+        onInsert: insertStep,
+        edgeInfo: { source: e.data.source, target: e.data.target, via: e.data.via },
+      },
+    }));
+    // a step nothing routes to (and isn't the start) is a disconnected orphan
+    const incoming = new Set(edges.map((e) => e.target));
     if (relayout || Object.keys(posRef.current).length === 0) {
-      posRef.current = layout(flow, edges);
+      posRef.current = layout(flow);
     }
-    // keep positions for any node lacking one (newly added)
-    const auto = layout(flow, edges);
+    const auto = layout(flow); // fills a slot for any node lacking a saved position
     const nodes = Object.entries(flow.nodes || {}).map(([id, node]) => ({
       id,
       type: "flowNode",
@@ -364,19 +796,22 @@ function App() {
         node,
         isInitial: flow.initial_node === id,
         selected: selected === id,
+        orphan: flow.initial_node !== id && !incoming.has(id),
       },
     }));
     setRfNodes(nodes);
     setRfEdges(edges);
-  }, [selected]);
+  }, [selected, insertStep]);
 
   useEffect(() => { rebuild(false); }, [rev, selected, rebuild]);
 
-  /* ---- load flow list on mount ---- */
-  useEffect(() => {
-    fetch("/api/flows").then((r) => r.json()).then((d) => setFlowList(d.flows || []))
+  const refreshList = useCallback(() => {
+    return fetch("/api/flows").then((r) => r.json()).then((d) => setFlowList(d.flows || []))
       .catch(() => showToast("Could not list flows", true));
   }, [showToast]);
+
+  /* ---- load flow list on mount ---- */
+  useEffect(() => { refreshList(); }, [refreshList]);
 
   /* ---- load a flow ---- */
   const loadFlow = useCallback(async (name) => {
@@ -388,11 +823,14 @@ function App() {
       flowRef.current = JSON.parse(text);   // preserves key order
       posRef.current = {};
       setSelected(null);
+      setShowFlowSettings(false);
       setLoadedName(name);
-      setSaveName(name);
+      setDirty(false);
+      setShowOpen(false);
+      setViewKey((k) => k + 1);
       rebuild(true);
       bump();
-      showToast(`Loaded ${name}.json`);
+      showToast(`Opened ${name}.json`);
     } catch (e) {
       showToast(`Load failed: ${e.message}`, true);
     }
@@ -400,27 +838,39 @@ function App() {
 
   /* ---- create blank ---- */
   const createNew = useCallback(() => {
-    flowRef.current = blankFlow();
-    posRef.current = {};
-    setSelected(null);
-    setLoadedName("");
-    setSaveName("");
-    rebuild(true);
-    bump();
-    showToast("New blank flow created");
-  }, [rebuild, bump, showToast]);
+    const start = () => {
+      flowRef.current = blankFlow();
+      posRef.current = {};
+      setSelected(null);
+      setShowFlowSettings(false);
+      setLoadedName("");
+      setDirty(false);
+      setViewKey((k) => k + 1);
+      rebuild(true);
+      bump();
+      showToast("New blank flow created");
+    };
+    if (dirty) {
+      setConfirmBox({
+        title: "Start a new flow?",
+        message: "You have unsaved changes. Starting a new flow will discard them.",
+        confirmLabel: "Discard & start new",
+        onConfirm: () => { setConfirmBox(null); start(); },
+      });
+    } else start();
+  }, [rebuild, bump, showToast, dirty]);
 
-  /* ---- save ---- */
-  const save = useCallback(async () => {
+  /* ---- save (name is explicit; called by Save / Save-as) ---- */
+  const doSave = useCallback(async (rawName) => {
     const flow = flowRef.current;
-    if (!flow) return;
-    let name = (saveName || "").trim().replace(/\.json$/i, "");
-    if (!name) { showToast("Enter a file name to save", true); return; }
+    if (!flow) return false;
+    const name = (rawName || "").trim().replace(/\.json$/i, "");
+    if (!name) { showToast("Enter a file name to save", true); return false; }
     if (!/^[A-Za-z0-9_-]+$/.test(name)) {
-      showToast("File name: letters, numbers, - and _ only", true); return;
+      showToast("File name: letters, numbers, - and _ only", true); return false;
     }
     if (!flow.nodes || !flow.nodes[flow.initial_node]) {
-      showToast(`initial_node "${flow.initial_node}" is not a defined node`, true); return;
+      showToast(`The start node "${flow.initial_node}" isn't defined`, true); return false;
     }
     try {
       const body = JSON.stringify(flow, null, 2);
@@ -431,14 +881,23 @@ function App() {
       });
       const d = await res.json();
       if (!res.ok) throw new Error(d.error || res.statusText);
-      showToast(`Saved flows/${d.file}`);
       setLoadedName(name);
-      // refresh list
-      fetch("/api/flows").then((r) => r.json()).then((x) => setFlowList(x.flows || []));
+      setDirty(false);
+      setShowSave(false);
+      showToast(`Saved to flows/${d.file}`);
+      refreshList();
+      return true;
     } catch (e) {
       showToast(`Save failed: ${e.message}`, true);
+      return false;
     }
-  }, [saveName, showToast]);
+  }, [showToast, refreshList]);
+
+  // Primary Save: overwrite the loaded file if there is one, else prompt for a name.
+  const onSave = useCallback(() => {
+    if (loadedName) doSave(loadedName);
+    else setShowSave(true);
+  }, [loadedName, doSave]);
 
   /* ---- export (download) without saving ---- */
   const exportJson = useCallback(() => {
@@ -447,31 +906,30 @@ function App() {
     const blob = new Blob([JSON.stringify(flow, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url; a.download = `${saveName || "flow"}.json`; a.click();
+    a.href = url; a.download = `${loadedName || "flow"}.json`; a.click();
     URL.revokeObjectURL(url);
-  }, [saveName]);
+  }, [loadedName]);
 
-  /* ---- add node from palette ---- */
+  /* ---- add node from palette (no popup: default id, edit in panel) ---- */
   const addNode = useCallback((vtype) => {
     const flow = flowRef.current;
-    if (!flow) { showToast("Create or load a flow first", true); return; }
-    let id = prompt(`New ${vtype} node id (letters, numbers, _ , -):`, "");
-    if (!id) return;
-    id = id.trim();
-    if (!/^[A-Za-z0-9_-]+$/.test(id)) { showToast("Invalid node id", true); return; }
-    if (flow.nodes[id]) { showToast(`Node "${id}" already exists`, true); return; }
+    if (!flow) { showToast("Create or open a flow first", true); return; }
+    const id = uniqueId(flow, baseIdFor(vtype));
     flow.nodes[id] = newNodeSkeleton(vtype);
-    // place near center-ish so it's visible; user can drag
-    posRef.current[id] = { x: 320, y: 320 };
+    // place below existing nodes so it never lands on top of another card
+    const ys = Object.values(posRef.current).map((p) => p.y);
+    const maxY = ys.length ? Math.max(...ys) : PAD;
+    posRef.current[id] = { x: PAD, y: maxY + V_GAP };
     setSelected(id);
+    setDirty(true);
     bump();
+    showToast(`Added loose step "${id}" — connect it with "+ Insert step" on a solid line, or set its routing`, true);
   }, [bump, showToast]);
 
   /* ---- React Flow interactions ---- */
   const onNodesChange = useCallback((changes) => {
     setRfNodes((nds) => {
       const next = applyNodeChanges(changes, nds);
-      // persist positions to editor memory
       next.forEach((n) => { posRef.current[n.id] = n.position; });
       return next;
     });
@@ -480,8 +938,15 @@ function App() {
     setRfEdges((eds) => applyEdgeChanges(changes, eds));
   }, []);
 
-  const onNodeClick = useCallback((_e, n) => setSelected(n.id), []);
+  const onNodeClick = useCallback((_e, n) => { setShowFlowSettings(false); setSelected(n.id); }, []);
   const onPaneClick = useCallback(() => setSelected(null), []);
+
+  // Clicking a dashed (branching/function) route: be honest that inserting there
+  // isn't supported yet. Insertable edges are handled by their own "+" button.
+  const onEdgeClick = useCallback((_e, edge) => {
+    if (edge.data && edge.data.insertable) return;
+    showToast("Inserting into branching (function) routes is coming soon — for now, add steps along the main flow.", true);
+  }, [showToast]);
 
   // Drag-to-connect: set routing where a node HAS a node-level target.
   const onConnect = useCallback((c) => {
@@ -490,17 +955,17 @@ function App() {
     if (!src) return;
     if (visualType(src) === "collect-custom") {
       src.next = c.target;
-      showToast(`${c.source}.next → ${c.target}`);
-      bump();
+      showToast(`${c.source} → ${c.target}`);
+      markDirty();
     } else if (src.type === "categorize") {
       if (!src.fallback) src.fallback = c.target;
       else (src.buckets = src.buckets || []).push({ name: "new_bucket", description: "", next: c.target });
-      showToast(`categorize routing → ${c.target} (edit name/description in panel)`);
-      bump();
+      showToast(`Routing added → ${c.target} (name it in the panel)`);
+      markDirty();
     } else {
-      showToast("This node routes via its functions' goto — edit in the panel", true);
+      showToast("Routing for this node is defined by its functions (advanced) — connect it in the panel", true);
     }
-  }, [bump, showToast]);
+  }, [markDirty, showToast]);
 
   const flow = flowRef.current;
   const nodeIdList = flow ? Object.keys(flow.nodes || {}) : [];
@@ -508,103 +973,236 @@ function App() {
   return html`
     <div class="app">
       <div class="topbar">
-        <h1>Flow Builder</h1>
-        <span class="tag">__CLINIC_NAME__</span>
+        <div class="brand">
+          <div class="mark">P</div>
+          <div>
+            <div class="title">Flow Builder</div>
+            <div class="clinic">__CLINIC_NAME__</div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+        <button onClick=${() => { refreshList(); setShowOpen(true); }}><${Icon} name="open" /> Open flow</button>
+        <button onClick=${createNew}><${Icon} name="plus" /> New</button>
+
         <div class="spacer"></div>
-        <select value=${pickFile} onChange=${(e) => setPickFile(e.target.value)}>
-          <option value="">— pick a flow —</option>
-          ${flowList.map((f) => html`<option key=${f.name} value=${f.name}>${f.title} (${f.file})</option>`)}
-        </select>
-        <button onClick=${() => loadFlow(pickFile)} disabled=${!pickFile}>Load</button>
-        <button onClick=${createNew}>New</button>
-        <button onClick=${() => setShowFlowSettings((s) => !s)} disabled=${!flow}>Flow settings</button>
-        <div style=${{ width: "1px", height: "24px", background: "var(--line)" }}></div>
-        <input type="text" placeholder="filename" style=${{ width: "150px" }}
-               value=${saveName} onChange=${(e) => setSaveName(e.target.value)} />
+
+        ${flow && html`
+          <div class=${"filepill" + (dirty ? " unsaved" : "")}>
+            <span class="dot"></span>
+            <span class="fn">${loadedName ? `${loadedName}.json` : "Unsaved flow"}${dirty ? " • edited" : ""}</span>
+          </div>`}
+
+        <div class="divider"></div>
+        <button onClick=${() => { setSelected(null); setShowFlowSettings((s) => !s); }} disabled=${!flow}><${Icon} name="settings" /> Flow settings</button>
         <button onClick=${exportJson} disabled=${!flow}>Export</button>
-        <button class="primary" onClick=${save} disabled=${!flow}>Save to flows/</button>
-        <a class="navlink" href="/phone" target="_blank" style=${{ marginLeft: "8px" }}>/phone ↗</a>
+        <button onClick=${() => setShowSave(true)} disabled=${!flow}>Save as…</button>
+        <button class="primary" onClick=${onSave} disabled=${!flow}>Save</button>
+        <a class="navlink" href="/phone" target="_blank">/phone ↗</a>
       </div>
 
       <div class="body">
         <!-- palette -->
         <div class="palette">
-          <h2>Add node</h2>
+          <div class="tip">
+            <${Icon} name="plus" size=${15} />
+            <div>To weave a step into the call, hover a <strong>solid line</strong> and click <strong>+ Insert step</strong>.</div>
+          </div>
+          <div class="side-h adv-h">Add a loose step</div>
+          <div class="adv-sub">Advanced — starts unconnected; you'll wire its routing yourself.</div>
           ${NODE_TYPES.map((t) => html`
-            <button key=${t.key} class="addbtn" onClick=${() => addNode(t.key)}>
+            <button key=${t.key} class="addbtn" onClick=${() => addNode(t.key)} title=${"Add a loose " + t.label + " step"}>
               <span class="swatch" style=${{ background: t.color }}></span>${t.label}
             </button>`)}
-          <div style=${{ marginTop: "16px" }}></div>
-          <h2>Legend</h2>
-          <div class="dim-note">
-            Solid arrows = direct routing (bucket / next). Dashed arrows = routing
-            via a function's <code>goto</code> or a categorize fallback.
+          <div class="legend">
+            <div class="side-h">How to read the map</div>
+            <div class="legend-row"><span class="legend-line solid"></span> Linear route — insertable</div>
+            <div class="legend-row"><span class="legend-line dashed"></span> Branching / function route</div>
           </div>
         </div>
 
         <!-- canvas -->
         <div class="canvas">
-          <${ReactFlow}
-            nodes=${rfNodes} edges=${rfEdges}
-            nodeTypes=${nodeTypes}
-            onNodesChange=${onNodesChange} onEdgesChange=${onEdgesChange}
-            onConnect=${onConnect}
-            onNodeClick=${onNodeClick} onPaneClick=${onPaneClick}
-            fitView minZoom=${0.2}>
-            <${Background} gap=${20} color="#e2e8f0" />
-            <${Controls} />
-            <${MiniMap} nodeColor=${(n) => colorFor(n.data.node)} pannable zoomable />
-          <//>
+          ${flow
+            ? html`<${ReactFlow}
+                key=${viewKey}
+                nodes=${rfNodes} edges=${rfEdges}
+                nodeTypes=${nodeTypes} edgeTypes=${edgeTypes}
+                onNodesChange=${onNodesChange} onEdgesChange=${onEdgesChange}
+                onConnect=${onConnect}
+                onNodeClick=${onNodeClick} onPaneClick=${onPaneClick} onEdgeClick=${onEdgeClick}
+                fitView minZoom=${0.2} proOptions=${{ hideAttribution: true }}>
+                <${Background} gap=${22} size=${1.4} color="#dfe3f0" />
+                <${Controls} showInteractive=${false} />
+                <${MiniMap} nodeColor=${(n) => colorFor(n.data.node)} nodeStrokeWidth=${2} pannable zoomable />
+              <//>`
+            : html`<div class="empty" style=${{ marginTop: "18vh" }}>
+                <span class="big"><${Icon} name="flow" size=${36} /></span>
+                Open an existing clinic flow, or create a new one to start building.
+                <div style=${{ marginTop: "18px" }}>
+                  <button class="primary" onClick=${() => { refreshList(); setShowOpen(true); }}><${Icon} name="open" /> Open a flow</button>
+                </div>
+              </div>`}
         </div>
 
         <!-- properties / flow settings -->
         <div class="panel">
-          ${showFlowSettings
-            ? html`<${FlowSettings} flow=${flow} bump=${bump} onClose=${() => setShowFlowSettings(false)} />`
+          ${showFlowSettings && flow
+            ? html`<${FlowSettings} flow=${flow} markDirty=${markDirty} onClose=${() => setShowFlowSettings(false)} />`
             : (selected && flow && flow.nodes[selected]
                 ? html`<${Props} key=${selected} flow=${flow} nodeId=${selected}
-                          nodeIds=${nodeIdList} bump=${bump} setSelected=${setSelected}
-                          showToast=${showToast} rebuild=${rebuild} posRef=${posRef} />`
-                : html`<div class="empty">Load or create a flow, then click a node to edit it.</div>`)}
+                          nodeIds=${nodeIdList} markDirty=${markDirty} setSelected=${setSelected}
+                          showToast=${showToast} posRef=${posRef} askConfirm=${setConfirmBox} />`
+                : html`<div class="empty">
+                    <span class="big"><${Icon} name="cursor" size=${34} /></span>
+                    ${flow ? "Click a step on the map to edit it, or hover a solid line and click + Insert step." : "No flow open yet."}
+                  </div>`)}
         </div>
       </div>
-      ${toast && html`<div class=${"toast" + (toast.err ? " err" : "")}>${toast.msg}</div>`}
+
+      ${showOpen && html`<${OpenModal} flows=${flowList} onPick=${loadFlow} onClose=${() => setShowOpen(false)} />`}
+      ${showSave && html`<${SaveModal} initial=${loadedName} flowName=${flow && flow.name}
+                            onSave=${doSave} onClose=${() => setShowSave(false)} />`}
+      ${confirmBox && html`<${ConfirmModal} ...${confirmBox} onCancel=${() => setConfirmBox(null)} />`}
+
+      ${toast && html`<div class=${"toast" + (toast.err ? " err" : "")}>
+        <span class="toast-ic">${toast.err ? "!" : "✓"}</span>${toast.msg}</div>`}
+    </div>`;
+}
+
+/* ---- Open-flow picker modal ----------------------------------------------- */
+function OpenModal({ flows, onPick, onClose }) {
+  return html`
+    <div class="overlay" onClick=${onClose}>
+      <div class="modal" onClick=${(e) => e.stopPropagation()}>
+        <div class="modal-head">
+          <div>
+            <h3>Open a clinic flow</h3>
+            <div class="sub">Pick a saved flow to edit. Click a card to open it.</div>
+          </div>
+          <button class="modal-x" onClick=${onClose}>✕</button>
+        </div>
+        <div class="modal-body">
+          ${flows.length === 0
+            ? html`<div class="flow-empty">No saved flows yet. Close this and hit <strong>+ New</strong> to build one.</div>`
+            : html`<div class="flow-grid">
+                ${flows.map((f) => html`
+                  <button class="flow-card" key=${f.name} onClick=${() => onPick(f.name)}>
+                    <div class="fc-icon"><${Icon} name="file" size=${18} /></div>
+                    <div class="fc-title">${f.title || f.name}</div>
+                    <div class="fc-file">${f.file}</div>
+                  </button>`)}
+              </div>`}
+        </div>
+        <div class="modal-foot"><button onClick=${onClose}>Cancel</button></div>
+      </div>
+    </div>`;
+}
+
+/* ---- Save-as modal -------------------------------------------------------- */
+function SaveModal({ initial, flowName, onSave, onClose }) {
+  const [name, setName] = useState(initial || "");
+  const valid = /^[A-Za-z0-9_-]+$/.test(name.trim());
+  const submit = () => { if (valid) onSave(name); };
+  return html`
+    <div class="overlay" onClick=${onClose}>
+      <div class="modal sm" onClick=${(e) => e.stopPropagation()}>
+        <div class="modal-head">
+          <div>
+            <h3>Save flow</h3>
+            <div class="sub">Saves ${flowName ? html`“${flowName}”` : "this flow"} into the clinic's flows folder.</div>
+          </div>
+          <button class="modal-x" onClick=${onClose}>✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="field">
+            <label>File name</label>
+            <div class="prefix">
+              <input type="text" autoFocus value=${name}
+                     placeholder="e.g. penciled_test_clinic"
+                     onInput=${(e) => setName(e.target.value)}
+                     onKeyDown=${(e) => { if (e.key === "Enter") submit(); }} />
+              <span class="suffix">.json</span>
+            </div>
+            <span class="hint">${name && !valid
+              ? "Use letters, numbers, hyphens and underscores only."
+              : "Letters, numbers, hyphens and underscores. Saving an existing name overwrites it."}</span>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button onClick=${onClose}>Cancel</button>
+          <button class="primary" onClick=${submit} disabled=${!valid}>Save flow</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+/* ---- generic confirm modal ------------------------------------------------ */
+function ConfirmModal({ title, message, confirmLabel, onConfirm, onCancel }) {
+  return html`
+    <div class="overlay" onClick=${onCancel}>
+      <div class="modal sm" onClick=${(e) => e.stopPropagation()}>
+        <div class="modal-head"><h3>${title}</h3><button class="modal-x" onClick=${onCancel}>✕</button></div>
+        <div class="modal-body"><p style=${{ margin: "4px 0 12px", color: "var(--ink-soft)", lineHeight: 1.55 }}>${message}</p></div>
+        <div class="modal-foot">
+          <button onClick=${onCancel}>Cancel</button>
+          <button class="danger" onClick=${onConfirm}>${confirmLabel || "Confirm"}</button>
+        </div>
+      </div>
     </div>`;
 }
 
 /* ---- flow-level settings (persona / name / initial) ----------------------- */
-function FlowSettings({ flow, bump, onClose }) {
+function FlowSettings({ flow, markDirty, onClose }) {
   const [, force] = useState(0);
-  const set = (k, v) => { flow[k] = v; force((n) => n + 1); bump(); };
+  const set = (k, v) => { flow[k] = v; force((n) => n + 1); markDirty(); };
   return html`
-    <h2>Flow settings</h2>
+    <div class="panel-h"><${Icon} name="settings" /><h2>Flow settings</h2></div>
     <div class="field">
-      <label>Flow name<span class="hint"> (display only)</span></label>
-      <input type="text" style=${{ width: "100%" }} value=${flow.name || ""}
+      <label>Flow name <span class="hint inline">(shown in the picker)</span></label>
+      <input type="text" class="full" value=${flow.name || ""}
              onChange=${(e) => set("name", e.target.value)} />
     </div>
     <div class="field">
-      <label>Initial node</label>
-      <select style=${{ width: "100%" }} value=${flow.initial_node || ""}
+      <label>Start node <span class="hint inline">(where every call begins)</span></label>
+      <select class="full" value=${flow.initial_node || ""}
               onChange=${(e) => set("initial_node", e.target.value)}>
         ${Object.keys(flow.nodes || {}).map((id) => html`<option key=${id} value=${id}>${id}</option>`)}
       </select>
     </div>
     <div class="field">
-      <label>Persona<span class="hint"> (supports {CLINIC_NAME}, {ASSISTANT_NAME})</span></label>
+      <label>Persona</label>
       <textarea rows=${10} value=${flow.persona || ""} onChange=${(e) => set("persona", e.target.value)}></textarea>
+      <span class="hint">The assistant's voice & personality. Supports <code>{CLINIC_NAME}</code> and <code>{ASSISTANT_NAME}</code>.</span>
     </div>
-    <button onClick=${onClose}>Close</button>`;
+    <div class="section-sep"></div>
+    <button onClick=${onClose}>Close settings</button>`;
 }
 
 /* ---- per-node properties panel -------------------------------------------- */
-function Props({ flow, nodeId, nodeIds, bump, setSelected, showToast, rebuild, posRef }) {
+function Props({ flow, nodeId, nodeIds, markDirty, setSelected, showToast, posRef, askConfirm }) {
   const node = flow.nodes[nodeId];
   const [, force] = useState(0);
-  const touch = () => { force((n) => n + 1); bump(); };
+  const touch = () => { force((n) => n + 1); markDirty(); };
   const vt = visualType(node);
   const allFns = Object.keys(flow.functions || {});
-  const otherIds = nodeIds.filter((i) => i !== nodeId);
+
+  // Editable step id (rename). Committed on blur / Enter; rewrites all routes.
+  const [idDraft, setIdDraft] = useState(nodeId);
+  const [idErr, setIdErr] = useState("");
+  const incoming = new Set(computeEdges(flow).map((e) => e.target));
+  const isOrphan = flow.initial_node !== nodeId && !incoming.has(nodeId);
+  const commitId = () => {
+    const nid = idDraft.trim();
+    if (nid === nodeId) { setIdErr(""); return; }
+    if (!/^[A-Za-z0-9_-]+$/.test(nid)) { setIdErr("Use letters, numbers, _ and - only."); return; }
+    if (flow.nodes[nid]) { setIdErr(`A step named "${nid}" already exists.`); return; }
+    renameNodeInFlow(flow, nodeId, nid, posRef.current);
+    setIdErr("");
+    setSelected(nid);        // Props remounts (key=selected) with the new id
+    markDirty();
+    showToast(`Renamed to "${nid}"`);
+  };
 
   const setField = (k, v) => { node[k] = v; touch(); };
   const delField = (k) => { delete node[k]; touch(); };
@@ -615,44 +1213,70 @@ function Props({ flow, nodeId, nodeIds, bump, setSelected, showToast, rebuild, p
     touch();
   };
 
-  const setInitial = () => { flow.initial_node = nodeId; touch(); showToast(`"${nodeId}" is now the initial node`); };
+  const setInitial = () => { flow.initial_node = nodeId; touch(); showToast(`"${nodeId}" is now the start node`); };
 
   const deleteNode = () => {
-    if (!confirm(`Delete node "${nodeId}"? Edges referencing it will simply not draw.`)) return;
-    delete flow.nodes[nodeId];
-    delete posRef.current[nodeId];
-    if (flow.initial_node === nodeId) {
-      flow.initial_node = Object.keys(flow.nodes)[0] || "";
-    }
-    setSelected(null);
-    bump();
+    askConfirm({
+      title: `Delete “${nodeId}”?`,
+      message: "This removes the step from the flow. Any arrows pointing to it will simply stop drawing. You can’t undo this.",
+      confirmLabel: "Delete step",
+      onConfirm: () => {
+        delete flow.nodes[nodeId];
+        delete posRef.current[nodeId];
+        if (flow.initial_node === nodeId) flow.initial_node = Object.keys(flow.nodes)[0] || "";
+        askConfirm(null);
+        setSelected(null);
+        markDirty();
+      },
+    });
   };
 
-  /* type-specific editors */
   const hasFns = ["say", "collect", "branch", "tool", "handoff", "end", "collect-custom"].includes(vt);
+  // True when this node's exposed functions actually imply routing (a goto),
+  // so we only surface the "routing is function-defined" note when it applies.
+  const routesViaFns = (node.functions || []).some((fn) => {
+    const def = (flow.functions || {})[fn];
+    return def && behaviorTargets(def.behavior).length > 0;
+  });
 
   return html`
-    <h2>Node properties</h2>
+    <div class="panel-h">
+      <span class="badge" style=${{ background: colorFor(node) }}>${vt.replace("-", " ")}</span>
+      <h2>Edit step</h2>
+    </div>
+
+    ${isOrphan && html`
+      <div class="note warn" style=${{ marginBottom: "14px" }}>
+        <${Icon} name="warn" size=${14} />
+        <div>This step isn't connected — nothing routes to it, so a call never reaches it.
+          Use <strong>+ Insert step</strong> on a solid line, or point another step's routing here.</div>
+      </div>`}
+
     <div class="field">
-      <div class="row">
-        <span class="badge" style=${{ background: colorFor(node) }}>${vt}</span>
-        <strong style=${{ fontSize: "14px" }}>${nodeId}</strong>
-      </div>
+      <label>Step name / ID <span class="hint inline">(letters, numbers, _ and -)</span></label>
+      <input class="full" type="text" value=${idDraft}
+             onInput=${(e) => { setIdDraft(e.target.value); if (idErr) setIdErr(""); }}
+             onBlur=${commitId}
+             onKeyDown=${(e) => { if (e.key === "Enter") e.target.blur(); }} />
+      ${idErr
+        ? html`<span class="hint" style=${{ color: "var(--err)" }}>${idErr}</span>`
+        : html`<span class="hint">The step's unique id. Renaming updates every route that points here.</span>`}
     </div>
 
     <div class="field">
       ${flow.initial_node === nodeId
-        ? html`<span style=${{ color: "var(--accent)", fontSize: "12px", fontWeight: 700 }}>● Initial node</span>`
-        : html`<button onClick=${setInitial}>Mark as initial node</button>`}
+        ? html`<span class="initial-tag"><${Icon} name="flag" size=${12} /> Start node</span>`
+        : html`<button class="tiny" onClick=${setInitial}>Make this the start node</button>`}
     </div>
 
     ${node.type === "categorize" && html`
       <div class="field">
-        <label>Prompt<span class="hint"> (the question asked)</span></label>
+        <label>Prompt <span class="hint inline">(what the assistant asks)</span></label>
         <textarea rows=${3} value=${node.prompt || ""} onChange=${(e) => setField("prompt", e.target.value)}></textarea>
       </div>
       <div class="field">
-        <label>Buckets</label>
+        <label>Options</label>
+        <span class="hint" style=${{ marginTop: 0, marginBottom: "8px" }}>Each option routes the caller to a different step based on what they say.</span>
         ${(node.buckets || []).map((b, i) => html`
           <div class="subcard" key=${i}>
             <div class="smalllbl">name</div>
@@ -661,57 +1285,59 @@ function Props({ flow, nodeId, nodeIds, bump, setSelected, showToast, rebuild, p
             <div class="smalllbl">description</div>
             <div class="row"><input type="text" value=${b.description || ""}
               onChange=${(e) => { b.description = e.target.value; touch(); }} /></div>
-            <div class="smalllbl">next</div>
+            <div class="smalllbl">goes to</div>
             <div class="row">
               <select value=${b.next || ""} onChange=${(e) => { b.next = e.target.value; touch(); }}>
-                <option value="">—</option>
+                <option value="">— choose a step —</option>
                 ${nodeIds.map((id) => html`<option key=${id} value=${id}>${id}</option>`)}
               </select>
-              <button class="danger" onClick=${() => { node.buckets.splice(i, 1); touch(); }}>✕</button>
+              <button class="danger tiny" onClick=${() => { node.buckets.splice(i, 1); touch(); }}>✕</button>
             </div>
           </div>`)}
-        <button onClick=${() => { (node.buckets = node.buckets || []).push({ name: "", description: "", next: "" }); touch(); }}>+ bucket</button>
+        <button class="tiny" onClick=${() => { (node.buckets = node.buckets || []).push({ name: "", description: "", next: "" }); touch(); }}>+ Add option</button>
       </div>
       <div class="field">
-        <label>Fallback<span class="hint"> (when no bucket matches)</span></label>
-        <select style=${{ width: "100%" }} value=${node.fallback || ""} onChange=${(e) => setField("fallback", e.target.value)}>
-          <option value="">—</option>
+        <label>Fallback <span class="hint inline">(when nothing matches)</span></label>
+        <select class="full" value=${node.fallback || ""} onChange=${(e) => setField("fallback", e.target.value)}>
+          <option value="">— choose a step —</option>
           ${nodeIds.map((id) => html`<option key=${id} value=${id}>${id}</option>`)}
         </select>
       </div>`}
 
     ${vt === "collect-custom" && html`
       <div class="field">
-        <label>Prompt<span class="hint"> (intro before questions)</span></label>
+        <label>Prompt <span class="hint inline">(intro before the questions)</span></label>
         <textarea rows=${2} value=${node.prompt || ""} onChange=${(e) => setField("prompt", e.target.value)}></textarea>
       </div>
       <div class="field">
-        <label>Questions / fields</label>
+        <label>Questions to ask</label>
         ${(node.fields || []).map((f, i) => html`
           <div class="subcard" key=${i}>
             <div class="smalllbl">question (spoken)</div>
-            <div class="row"><input type="text" value=${f.question || ""}
+            <div class="row"><input type="text" placeholder="e.g. Which pharmacy do you use?" value=${f.question || ""}
               onChange=${(e) => { f.question = e.target.value; touch(); }} /></div>
             <div class="smalllbl">field (stored key)</div>
-            <div class="row"><input type="text" value=${f.field || ""}
-              onChange=${(e) => { f.field = e.target.value; touch(); }} /></div>
-            <div class="row" style=${{ marginTop: "4px" }}>
+            <div class="row"><input type="text" placeholder="e.g. pharmacy" value=${f.field || ""}
+              onChange=${(e) => { f.field = e.target.value; touch(); }}
+              onBlur=${(e) => { const n = normalizeFieldKey(e.target.value); if (n !== f.field) { f.field = n; touch(); } }} /></div>
+            <span class="hint" style=${{ marginTop: 0, marginBottom: "8px" }}>The name to store the answer under, e.g. <code style=${{ background:"#fff", padding:"1px 4px", borderRadius:"3px" }}>pharmacy</code></span>
+            <div class="row">
               <label class="chk"><input type="checkbox" checked=${!!f.required}
                 onChange=${(e) => { f.required = e.target.checked; touch(); }} /> required</label>
               <select value=${f.type || "string"} onChange=${(e) => { f.type = e.target.value; touch(); }}>
-                <option value="string">string</option>
-                <option value="boolean">boolean</option>
+                <option value="string">text</option>
+                <option value="boolean">yes / no</option>
                 <option value="number">number</option>
               </select>
-              <button class="danger" onClick=${() => { node.fields.splice(i, 1); touch(); }}>✕</button>
+              <button class="danger tiny" onClick=${() => { node.fields.splice(i, 1); touch(); }}>✕</button>
             </div>
           </div>`)}
-        <button onClick=${() => { (node.fields = node.fields || []).push({ question: "", field: "", required: false }); touch(); }}>+ question</button>
+        <button class="tiny" onClick=${() => { (node.fields = node.fields || []).push({ question: "", field: "", required: false }); touch(); }}>+ Add question</button>
       </div>
       <div class="field">
-        <label>Next node<span class="hint"> (after answers submitted)</span></label>
-        <select style=${{ width: "100%" }} value=${node.next || ""} onChange=${(e) => setField("next", e.target.value)}>
-          <option value="">—</option>
+        <label>Next step <span class="hint inline">(after all answers collected)</span></label>
+        <select class="full" value=${node.next || ""} onChange=${(e) => setField("next", e.target.value)}>
+          <option value="">— choose a step —</option>
           ${nodeIds.map((id) => html`<option key=${id} value=${id}>${id}</option>`)}
         </select>
       </div>`}
@@ -720,22 +1346,23 @@ function Props({ flow, nodeId, nodeIds, bump, setSelected, showToast, rebuild, p
        node.type === "handoff" || node.type === "end" ||
        (node.type === "collect" && vt !== "collect-custom")) && html`
       <div class="field">
-        <label>Instructions<span class="hint"> (spoken text / questions — templated)</span></label>
+        <label>Instructions</label>
         <textarea rows=${7} value=${node.instructions || ""} onChange=${(e) => setField("instructions", e.target.value)}></textarea>
+        <span class="hint">What the assistant should say or do here. Supports <code>{CLINIC_NAME}</code> and <code>{ASSISTANT_NAME}</code>.</span>
       </div>`}
 
     ${node.dynamic && html`
       <div class="field">
-        <div class="dim-note">This node has a <strong>dynamic</strong> block
-          (<code>${node.dynamic.var}</code> from <code>${node.dynamic.source}</code>).
-          Preserved verbatim on save.</div>
+        <div class="note plain">This step has a <strong>dynamic</strong> block
+          (<code>${node.dynamic.var}</code> from <code>${node.dynamic.source}</code>). Preserved exactly as-is when you save.</div>
       </div>`}
 
     ${hasFns && html`
+      <div class="section-sep"></div>
       <div class="field">
-        <label>Functions exposed<span class="hint"> (LLM-callable at this node)</span></label>
+        <label>Available actions <span class="hint inline">(functions the assistant can call here)</span></label>
         ${allFns.length === 0
-          ? html`<div class="hint">No functions defined in this flow's library yet.</div>`
+          ? html`<span class="hint">No functions are defined in this flow yet.</span>`
           : html`<div class="fnlist">
               ${allFns.map((fn) => html`
                 <label class="chk" key=${fn}>
@@ -743,18 +1370,23 @@ function Props({ flow, nodeId, nodeIds, bump, setSelected, showToast, rebuild, p
                          onChange=${() => toggleFn(fn)} /> ${fn}
                 </label>`)}
             </div>`}
-      </div>`}
+      </div>
+      ${routesViaFns && html`
+        <div class="note" style=${{ marginTop: "4px" }}>
+          Routing for this step is defined by its functions (advanced) — not editable here yet.
+        </div>`}`}
 
+    <div class="section-sep"></div>
     <div class="field">
       <label class="chk">
         <input type="checkbox" checked=${node.context === "reset"}
                onChange=${(e) => { e.target.checked ? setField("context", "reset") : delField("context"); }} />
-        Reset conversation context on entering this node
+        Reset conversation context when entering this step
       </label>
     </div>
 
-    <div class="field" style=${{ marginTop: "18px" }}>
-      <button class="danger" onClick=${deleteNode}>Delete node</button>
+    <div class="field" style=${{ marginTop: "22px" }}>
+      <button class="danger" onClick=${deleteNode}>Delete this step</button>
     </div>`;
 }
 

@@ -53,3 +53,8 @@ is misleading (the panel has no goto editor). Next builder feature: expose
 function routing (goto targets, conditional routes) as editable in the panel so
 flows can actually be re-wired without editing JSON.
 >>>>>>> t3code/9afe63c9
+
+## Builder UX niceties (post-demo polish)
+- Rename a step inline by double-clicking its name on the card (currently only
+  editable in the side panel).
+- Drag-select multiple nodes on the canvas (React Flow selectionOnDrag / multi-select).
