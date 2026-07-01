@@ -28,3 +28,13 @@ names, "Dr.", common drugs, clinic name). Per-clinic config, not a one-off.
 ## Turn detection over-sensitive to background noise
 VAD triggers on background noise. Levers: VADParams confidence (toward 0.8),
 stop_secs. Tune against real clinic-call recordings, not a quiet room.
+
+## Builder can't edit function goto routing (KEY GAP for real configurability)
+The builder edits node text, questions, "next", exposed functions, and initial
+node — but NOT where a function routes (its goto). Most of the flow's real routing
+(greeting->verify->intake etc.) lives in function gotos, so a GTM/clinic user
+currently cannot rewire the flow through the UI — only add leaf nodes and edit
+text. The "This node routes via its functions' goto — edit in the panel" message
+is misleading (the panel has no goto editor). Next builder feature: expose
+function routing (goto targets, conditional routes) as editable in the panel so
+flows can actually be re-wired without editing JSON.

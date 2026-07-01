@@ -10,6 +10,9 @@ Run locally and talk from a browser:
     # then open http://localhost:7860/client and click Connect
 """
 
+import json
+import re
+
 from dotenv import load_dotenv
 from loguru import logger
 
@@ -386,6 +389,114 @@ def _register_data_route() -> None:
     logger.info("Test-data reference available at /data")
 
 
+# --- Visual flow builder (additive; separate front-end, same JSON format) ----
+# Serves /builder plus a tiny read/write API over flows/*.json. This does NOT
+# touch the bot pipeline, flow_engine.py, tools, existing flows, or the /phone,
+# /client, /data routes. It reads and writes the SAME flow config JSON the
+# engine already loads, so anything created here runs unchanged via FLOW_CONFIG.
+_FLOW_NAME_RE = re.compile(r"^[A-Za-z0-9_-]+$")
+
+
+def _flows_dir():
+    from pathlib import Path
+
+    return Path(__file__).parent / "flows"
+
+
+def _safe_flow_path(name: str):
+    """Resolve `name` to flows/<name>.json, rejecting path traversal / bad names."""
+    from pathlib import Path
+
+    base = name[:-5] if name.endswith(".json") else name
+    if not _FLOW_NAME_RE.match(base):
+        return None
+    flows = _flows_dir().resolve()
+    path = (flows / f"{base}.json").resolve()
+    # Belt-and-suspenders: the resolved path must stay inside flows/.
+    if path.parent != flows:
+        return None
+    return path
+
+
+def _register_builder_route() -> None:
+    """Additively serve the visual flow builder UI + a small flows/ read/write API."""
+    import html
+    from pathlib import Path
+
+    from fastapi import Request
+    from fastapi.responses import HTMLResponse, JSONResponse, Response
+
+    from pipecat.runner.run import app
+
+    builder_html = Path(__file__).parent / "static" / "builder.html"
+
+    @app.get("/builder")
+    async def builder_page():  # noqa: ANN202
+        page = (
+            builder_html.read_text(encoding="utf-8")
+            .replace("__CLINIC_NAME__", html.escape(config.CLINIC_NAME))
+            .replace("__ASSISTANT_NAME__", html.escape(config.ASSISTANT_NAME))
+        )
+        return HTMLResponse(page)
+
+    @app.get("/api/flows")
+    async def list_flows():  # noqa: ANN202
+        flows = _flows_dir()
+        items = []
+        if flows.is_dir():
+            for p in sorted(flows.glob("*.json")):
+                name = p.stem
+                display = name
+                try:
+                    with open(p, "r", encoding="utf-8") as f:
+                        display = json.load(f).get("name", name)
+                except Exception as exc:  # noqa: BLE001 - listing must never 500
+                    logger.warning(f"/api/flows: could not read {p.name}: {exc}")
+                items.append({"file": p.name, "name": name, "title": display})
+        return JSONResponse({"flows": items})
+
+    @app.get("/api/flows/{name}")
+    async def get_flow(name: str):  # noqa: ANN202
+        path = _safe_flow_path(name)
+        if path is None:
+            return JSONResponse({"error": "invalid flow name"}, status_code=400)
+        if not path.is_file():
+            return JSONResponse({"error": "not found"}, status_code=404)
+        # Return the raw text so the editor sees the file byte-for-byte.
+        return Response(path.read_text(encoding="utf-8"), media_type="application/json")
+
+    @app.post("/api/flows/{name}")
+    async def save_flow(name: str, request: Request):  # noqa: ANN202
+        path = _safe_flow_path(name)
+        if path is None:
+            return JSONResponse({"error": "invalid flow name"}, status_code=400)
+        raw = (await request.body()).decode("utf-8")
+        # Validate that it parses AND has the top-level fields the engine reads,
+        # so we never write a file that would crash FlowEngine on load.
+        try:
+            spec = json.loads(raw)
+        except Exception as exc:  # noqa: BLE001
+            return JSONResponse({"error": f"invalid JSON: {exc}"}, status_code=400)
+        missing = [k for k in ("persona", "initial_node", "functions", "nodes") if k not in spec]
+        if missing:
+            return JSONResponse(
+                {"error": f"missing required field(s): {', '.join(missing)}"}, status_code=400
+            )
+        if spec["initial_node"] not in spec.get("nodes", {}):
+            return JSONResponse(
+                {"error": f"initial_node '{spec['initial_node']}' is not a defined node"},
+                status_code=400,
+            )
+        _flows_dir().mkdir(parents=True, exist_ok=True)
+        # Write the editor's bytes verbatim (round-trip-safe: what you export is
+        # exactly what lands on disk).
+        path.write_text(raw, encoding="utf-8")
+        logger.info(f"Flow builder saved {path.name} ({len(raw)} bytes)")
+        return JSONResponse({"ok": True, "file": path.name})
+
+    logger.info("Visual flow builder available at /builder")
+
+
 if __name__ == "__main__":
     import asyncio
 
@@ -399,6 +510,7 @@ if __name__ == "__main__":
     # Additive routes — register before main() configures/serves the app.
     _register_phone_route()
     _register_data_route()
+    _register_builder_route()
 
     from pipecat.runner.run import main
 
