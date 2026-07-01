@@ -28,3 +28,16 @@ names, "Dr.", common drugs, clinic name). Per-clinic config, not a one-off.
 ## Turn detection over-sensitive to background noise
 VAD triggers on background noise. Levers: VADParams confidence (toward 0.8),
 stop_secs. Tune against real clinic-call recordings, not a quiet room.
+
+## No API abuse protection (BLOCKER before any public hosting)
+Bot runs with "Allowed origins: all (no restriction)", no auth, no rate limiting.
+Fine locally (localhost only). NOT safe the moment it's on a public URL:
+- /start can be spammed → each session burns paid Deepgram/Cartesia/Anthropic
+  credits (cost abuse + can DoS the demo by exhausting provider limits).
+- POST /api/flows/{name} (builder save) writes files to disk with no auth →
+  anyone could overwrite flow configs or write arbitrary filenames.
+Before hosting (ngrok or deploy), add at minimum:
+1. Shared-secret / access token required to start a session and hit /api routes.
+2. Rate limiting on /start and the API routes (N per IP per minute).
+3. Filename validation on the save endpoint (no path traversal, restrict to flows/).
+Do NOT share a public URL until at least the token gate is in place.
