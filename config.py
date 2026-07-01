@@ -17,6 +17,11 @@ def _flag(name: str, default: str = "false") -> bool:
     return os.getenv(name, default).strip().lower() in ("1", "true", "yes", "on")
 
 
+# --- Branding (clinic + assistant names) ------------------------------------
+CLINIC_NAME = os.getenv("CLINIC_NAME", "Penciled Test Clinic")
+ASSISTANT_NAME = os.getenv("ASSISTANT_NAME", "Riley")
+
+
 # --- Provider selection (swap these in .env) --------------------------------
 STT_PROVIDER = os.getenv("STT_PROVIDER", "deepgram").lower()
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "anthropic").lower()
@@ -31,11 +36,11 @@ TTS_FALLBACK_PROVIDER = os.getenv("TTS_FALLBACK_PROVIDER", "deepgram").lower()
 # --- Per-provider models ----------------------------------------------------
 DEEPGRAM_MODEL = os.getenv("DEEPGRAM_MODEL", "nova-3-general")
 
-# NOTE ON LATENCY: defaults to Opus 4.8 (highest quality). For the ~800ms
-# per-turn target a real-time voice demo wants a faster model — set
-# ANTHROPIC_MODEL=claude-haiku-4-5 (or claude-sonnet-4-6) in .env. The latency
-# logged per turn (see observers.py) makes the trade-off visible.
-ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-opus-4-8")
+# Default is Haiku: for a real-time voice demo, low latency (the ~800ms per-turn
+# target) matters more than peak reasoning. Swap via ANTHROPIC_MODEL in .env
+# (e.g. claude-sonnet-4-6 for more headroom). Per-turn latency is logged so the
+# trade-off is always visible.
+ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-haiku-4-5")
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4.1")
 GOOGLE_MODEL = os.getenv("GOOGLE_MODEL", "gemini-2.5-flash")
 

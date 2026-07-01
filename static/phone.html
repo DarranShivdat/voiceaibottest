@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>__CLINIC_NAME__</title>
+
+  <!-- Pin the SAME SDK stack the prebuilt /client uses. The importmap makes the
+       transport resolve the one pinned client-js instance (no duplicate copy). -->
+  <script type="importmap">
+  {
+    "imports": {
+      "@pipecat-ai/client-js": "https://esm.sh/@pipecat-ai/client-js@1.12.0",
+      "@pipecat-ai/small-webrtc-transport": "https://esm.sh/@pipecat-ai/small-webrtc-transport@1.10.5?external=@pipecat-ai/client-js"
+    }
+  }
+  </script>
+
+  <style>
+    :root {
+      --bg: #5E78EE;      /* Penciled brand blue (header background) */
+      --bg2: #4A63D8;     /* darker shade for gradient/hover depth */
+      --card: #ffffff;
+      --ink: #0f172a;
+      --muted: #64748b;
+      --line: #e6ebf1;
+      --green: #22c55e;
+      --green-d: #16a34a;
+      --red: #ef4444;
+      --red-d: #dc2626;
+      --user: #5E78EE;    /* outgoing (user) chat bubbles */
+      --bot: #f1f5f9;
+      --accent: #5E78EE;  /* avatar speaking ring */
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: radial-gradient(120% 120% at 50% 0%, #2a3a86 0%, #1c2456 60%, #131735 100%);
+      display: flex; align-items: center; justify-content: center;
+      padding: 20px; color: var(--ink);
+    }
+    .phone {
+      width: 100%; max-width: 400px; height: min(92vh, 860px);
+      background: var(--card); border-radius: 34px; overflow: hidden;
+      box-shadow: 0 30px 80px rgba(0,0,0,.45), 0 2px 6px rgba(0,0,0,.2);
+      display: flex; flex-direction: column; position: relative;
+    }
+
+    /* --- Header / clinic identity --- */
+    .header {
+      padding: 26px 22px 18px; text-align: center;
+      background: linear-gradient(160deg, var(--bg) 0%, var(--bg2) 100%);
+      color: #ecfdf5; flex-shrink: 0;
+    }
+    .avatar {
+      width: 76px; height: 76px; margin: 0 auto 12px; border-radius: 50%;
+      background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.28);
+      display: flex; align-items: center; justify-content: center;
+      backdrop-filter: blur(4px);
+    }
+    .avatar svg { width: 40px; height: 40px; }
+    .clinic { font-size: 20px; font-weight: 650; letter-spacing: .2px; }
+    .sub { font-size: 13px; opacity: .8; margin-top: 3px; }
+    .status {
+      font-size: 13px; margin-top: 10px; height: 18px; opacity: .9;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* speaking pulse ring around avatar when bot talks */
+    .avatar.speaking { animation: none; }
+    .avatar.speaking::after {
+      content: ""; position: absolute; width: 76px; height: 76px; border-radius: 50%;
+      border: 2px solid var(--accent); animation: ring 1.4s ease-out infinite;
+    }
+    .header { position: relative; }
+    @keyframes ring {
+      0% { transform: scale(1); opacity: .8; }
+      100% { transform: scale(1.7); opacity: 0; }
+    }
+    /* connecting: gentle avatar pulse */
+    .avatar.pulsing { animation: pulse 1.3s ease-in-out infinite; }
+    @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+
+    /* --- Body regions swap by state --- */
+    .body { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+
+    .center {
+      flex: 1; display: flex; flex-direction: column; align-items: center;
+      justify-content: center; text-align: center; padding: 24px; gap: 8px;
+    }
+    .center .big { font-size: 17px; font-weight: 600; }
+    .center .small { font-size: 14px; color: var(--muted); max-width: 260px; line-height: 1.4; }
+
+    /* transcript */
+    .transcript {
+      flex: 1; overflow-y: auto; padding: 16px 14px; display: flex;
+      flex-direction: column; gap: 8px; background: #fbfdff;
+    }
+    .bubble {
+      max-width: 82%; padding: 9px 13px; border-radius: 16px; font-size: 14.5px;
+      line-height: 1.35; word-wrap: break-word; white-space: pre-wrap;
+      animation: rise .18s ease-out;
+    }
+    @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+    .bubble.bot { align-self: flex-start; background: var(--bot); color: var(--ink); border-bottom-left-radius: 5px; }
+    .bubble.user { align-self: flex-end; background: var(--user); color: #ecfdf5; border-bottom-right-radius: 5px; }
+    .bubble.interim { opacity: .6; }
+    .speaker-tag { font-size: 11px; color: var(--muted); margin: 2px 4px -2px; }
+    .speaker-tag.user { align-self: flex-end; }
+    .empty-hint { color: var(--muted); font-size: 13px; text-align: center; margin: auto; padding: 20px; }
+
+    /* --- Controls --- */
+    .controls { padding: 18px 22px 26px; flex-shrink: 0; }
+    .row { display: flex; align-items: center; justify-content: center; gap: 26px; }
+    .btn {
+      border: none; cursor: pointer; font-family: inherit; color: #fff;
+      display: flex; align-items: center; justify-content: center; transition: transform .08s, background .2s, opacity .2s;
+    }
+    .btn:active { transform: scale(.94); }
+    .btn:disabled { opacity: .5; cursor: default; }
+    .btn-call {
+      width: 100%; height: 58px; border-radius: 30px; background: var(--green);
+      font-size: 17px; font-weight: 650; gap: 10px; box-shadow: 0 8px 22px rgba(34,197,94,.4);
+    }
+    .btn-call:hover { background: var(--green-d); }
+    .btn-round {
+      width: 62px; height: 62px; border-radius: 50%;
+    }
+    .btn-end { background: var(--red); box-shadow: 0 8px 22px rgba(239,68,68,.4); }
+    .btn-end:hover { background: var(--red-d); }
+    .btn-mute { background: #e2e8f0; color: var(--ink); }
+    .btn-mute.on { background: #cbd5e1; }
+    .ctl-label { font-size: 11px; color: var(--muted); text-align: center; margin-top: 6px; }
+    .ctl { display: flex; flex-direction: column; align-items: center; }
+    svg.ic { width: 24px; height: 24px; }
+
+    /* state visibility */
+    [data-show] { display: none; }
+    body[data-state="idle"]      [data-show~="idle"],
+    body[data-state="connecting"][data-show~="connecting"],
+    body[data-state="incall"]    [data-show~="incall"],
+    body[data-state="denied"]    [data-show~="denied"],
+    body[data-state="error"]     [data-show~="error"] { display: flex; }
+    /* controls blocks */
+    body[data-state="idle"]      .ctl-idle,
+    body[data-state="denied"]    .ctl-idle,
+    body[data-state="error"]     .ctl-idle { display: block; }
+    body[data-state="connecting"].ctl-connecting-x { }
+    .ctl-idle { display: none; }
+    body[data-state="connecting"] .ctl-connecting,
+    body[data-state="incall"]     .ctl-incall { display: flex; }
+    .ctl-connecting, .ctl-incall { display: none; }
+  </style>
+</head>
+<body data-state="idle">
+  <div class="phone">
+    <div class="header">
+      <div class="avatar" id="avatar">
+        <!-- stethoscope / care mark -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="#ecfdf5" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 3v5a4 4 0 0 0 8 0V3"/><path d="M4 3h2M14 3h2"/>
+          <path d="M10 12v3a5 5 0 0 0 10 0v-1"/><circle cx="20" cy="11" r="2"/>
+        </svg>
+      </div>
+      <div class="clinic">__CLINIC_NAME__</div>
+      <div class="sub">Scheduling &amp; New Patient Intake</div>
+      <div class="status" id="status"></div>
+    </div>
+
+    <div class="body">
+      <!-- idle -->
+      <div class="center" data-show="idle">
+        <div class="big">Book your initial exam</div>
+        <div class="small">Tap call to speak with __ASSISTANT_NAME__, our scheduling assistant. You can ask about new-patient visits, insurance, and available times.</div>
+      </div>
+
+      <!-- connecting -->
+      <div class="center" data-show="connecting">
+        <div class="big" id="connecting-title">Calling…</div>
+        <div class="small">Connecting you to the front desk.</div>
+      </div>
+
+      <!-- mic denied -->
+      <div class="center" data-show="denied">
+        <div class="big">Microphone needed</div>
+        <div class="small">This call needs your microphone. Allow mic access in your browser (check the address bar), then tap Call again.</div>
+      </div>
+
+      <!-- generic error -->
+      <div class="center" data-show="error">
+        <div class="big">Couldn't connect</div>
+        <div class="small" id="error-msg">Something went wrong. Please try calling again.</div>
+      </div>
+
+      <!-- in call: transcript -->
+      <div class="transcript" data-show="incall" id="transcript">
+        <div class="empty-hint" id="empty-hint">__ASSISTANT_NAME__ will greet you in a moment…</div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <!-- idle / denied / error -->
+      <div class="ctl-idle">
+        <button class="btn btn-call" id="btn-call">
+          <svg class="ic" viewBox="0 0 24 24" fill="currentColor"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.7 21 3 13.3 3 3.9c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.2.2 2.4.6 3.6.1.4 0 .8-.3 1.1L6.6 10.8z"/></svg>
+          Call the clinic
+        </button>
+      </div>
+
+      <!-- connecting -->
+      <div class="ctl-connecting row">
+        <div class="ctl">
+          <button class="btn btn-round btn-end" id="btn-cancel" aria-label="Cancel">
+            <svg class="ic" viewBox="0 0 24 24" fill="currentColor"><path d="M21 15.5c-1.3 0-2.5-.2-3.6-.6-.4-.1-.8 0-1 .2l-2.2 2.2c-2.8-1.5-5.2-3.8-6.6-6.6l2.2-2.2c.3-.3.4-.7.2-1C9.2 8.4 9 7.2 9 6c0-.6-.4-1-1-1H4.5c-.6 0-1 .4-1 1 0 1 .1 2 .3 3M2 2l20 20"/></svg>
+          </button>
+          <div class="ctl-label">Cancel</div>
+        </div>
+      </div>
+
+      <!-- in call -->
+      <div class="ctl-incall row">
+        <div class="ctl">
+          <button class="btn btn-round btn-mute" id="btn-mute" aria-label="Mute">
+            <svg class="ic" id="mic-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3z"/><path d="M17 11a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V21h2v-3.1A7 7 0 0 0 19 11h-2z"/></svg>
+          </button>
+          <div class="ctl-label" id="mute-label">Mute</div>
+        </div>
+        <div class="ctl">
+          <button class="btn btn-round btn-end" id="btn-end" aria-label="End call">
+            <svg class="ic" viewBox="0 0 24 24" fill="currentColor"><path d="M12 9c-2 0-3.9.3-5.7.9-.6.2-1 .8-1 1.4v2.1c0 .5.3.9.8 1 .9.3 1.9.5 2.9.6.5.1 1-.3 1-.8v-1.6c1.3-.3 2.7-.3 4 0v1.6c0 .5.5.9 1 .8 1-.1 2-.3 2.9-.6.5-.1.8-.5.8-1v-2.1c0-.6-.4-1.2-1-1.4C15.9 9.3 14 9 12 9z"/></svg>
+          </button>
+          <div class="ctl-label">End</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { PipecatClient } from "@pipecat-ai/client-js";
+    import { SmallWebRTCTransport } from "@pipecat-ai/small-webrtc-transport";
+
+    // --- DOM ---
+    const bodyEl = document.body;
+    const statusEl = document.getElementById("status");
+    const avatar = document.getElementById("avatar");
+    const transcriptEl = document.getElementById("transcript");
+    const emptyHint = document.getElementById("empty-hint");
+    const connectingTitle = document.getElementById("connecting-title");
+    const errorMsg = document.getElementById("error-msg");
+    const muteLabel = document.getElementById("mute-label");
+    const btnMute = document.getElementById("btn-mute");
+
+    // --- per-call state (NEVER reused across calls) ---
+    let client = null;
+    let timerId = null;
+    let ringTimer = null;
+    let seconds = 0;
+    let muted = false;
+    let currentUserBubble = null;
+    let currentBotBubble = null;
+    let audioEl = null;      // remote bot audio sink (fresh per call)
+    let audioCtx = null;     // unlocked on first user gesture (reused)
+
+    function setState(s) { bodyEl.setAttribute("data-state", s); }
+
+    function fmt(t) {
+      const m = Math.floor(t / 60), s = t % 60;
+      return `${m}:${s.toString().padStart(2, "0")}`;
+    }
+    function startTimer() {
+      seconds = 0; statusEl.textContent = "00:00";
+      timerId = setInterval(() => { seconds++; statusEl.textContent = fmt(seconds); }, 1000);
+    }
+    function stopTimer() { clearInterval(timerId); timerId = null; }
+
+    function clearTranscript() {
+      transcriptEl.querySelectorAll(".bubble, .speaker-tag").forEach(n => n.remove());
+      currentUserBubble = null; currentBotBubble = null;
+      if (emptyHint) emptyHint.style.display = "";
+    }
+    function scrollDown() { transcriptEl.scrollTop = transcriptEl.scrollHeight; }
+    function hideHint() { if (emptyHint) emptyHint.style.display = "none"; }
+
+    function newBubble(side) {
+      hideHint();
+      const b = document.createElement("div");
+      b.className = `bubble ${side}`;
+      transcriptEl.appendChild(b);
+      scrollDown();
+      return b;
+    }
+
+    function onUser(text, final) {
+      if (!text) return;
+      if (!currentUserBubble) {
+        currentUserBubble = newBubble("user");
+        currentUserBubble.classList.add("interim");
+      }
+      currentUserBubble.textContent = text;
+      scrollDown();
+      if (final) {
+        currentUserBubble.classList.remove("interim");
+        currentUserBubble = null;
+        currentBotBubble = null; // a new turn: bot reply starts fresh
+      }
+    }
+
+    function onBotText(text) {
+      if (!text) return;
+      if (!currentBotBubble) currentBotBubble = newBubble("bot");
+      currentBotBubble.textContent += (currentBotBubble.textContent ? " " : "") + text.trim();
+      scrollDown();
+    }
+
+    // --- remote bot audio playback ---
+    // Create a fresh <audio> sink INSIDE the Call click (user gesture) and prime
+    // it, so the browser's autoplay policy lets it play the bot's track later.
+    function setupAudioElement() {
+      teardownAudio();
+      audioEl = document.createElement("audio");
+      audioEl.autoplay = true;
+      audioEl.playsInline = true;
+      audioEl.setAttribute("playsinline", "");
+      audioEl.muted = false;
+      audioEl.style.display = "none";
+      document.body.appendChild(audioEl);
+      // Prime within the gesture to unlock playback (no source yet — harmless).
+      audioEl.play().catch(() => {});
+      // Also unlock/resume an AudioContext within the gesture (belt & suspenders).
+      try {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (AC) {
+          if (!audioCtx) audioCtx = new AC();
+          if (audioCtx.state === "suspended") audioCtx.resume().catch(() => {});
+        }
+      } catch (e) { console.warn("[phone] AudioContext unlock failed", e); }
+    }
+
+    function teardownAudio() {
+      if (audioEl) {
+        try { audioEl.pause(); } catch (e) {}
+        audioEl.srcObject = null;
+        audioEl.remove();
+        audioEl = null;
+      }
+    }
+
+    function attachBotAudio(track) {
+      console.log("[phone] bot audio track received:", track && track.id);
+      if (!audioEl) return;
+      audioEl.srcObject = new MediaStream([track]);
+      audioEl.play()
+        .then(() => console.log("[phone] bot audio play() succeeded"))
+        .catch((e) => console.warn("[phone] bot audio play() failed:", e));
+    }
+
+    // --- call lifecycle ---
+    async function startCall() {
+      // Create + prime the audio sink first, while we're still in the click
+      // handler's user gesture (required for autoplay of the bot's audio).
+      setupAudioElement();
+
+      // Ask for mic up front so we can show a clear message if denied.
+      try {
+        const probe = await navigator.mediaDevices.getUserMedia({ audio: true });
+        probe.getTracks().forEach(t => t.stop()); // SDK opens its own track
+      } catch (e) {
+        console.warn("mic permission error", e);
+        teardownAudio();
+        setState("denied");
+        return;
+      }
+
+      setState("connecting");
+      avatar.classList.add("pulsing");
+      connectingTitle.textContent = "Calling…";
+      clearInterval(ringTimer);
+      ringTimer = setTimeout(() => { connectingTitle.textContent = "Connecting…"; }, 900);
+
+      // 2) BRAND NEW transport + client every call — never reuse a cached
+      //    client/transport/PeerConnection. This is what makes repeated
+      //    Call → Hang up → Call work with no page refresh.
+      const transport = new SmallWebRTCTransport();
+      client = new PipecatClient({
+        transport,
+        enableMic: true,
+        enableCam: false,
+        callbacks: {
+          onBotReady: () => enterInCall(),
+          onConnected: () => {},
+          onDisconnected: () => { if (bodyEl.getAttribute("data-state") === "incall" || bodyEl.getAttribute("data-state") === "connecting") teardown("idle"); },
+          onError: (err) => {
+            console.error("pipecat error", err);
+            errorMsg.textContent = "We couldn't reach the clinic line. Please try again.";
+            teardown("error");
+          },
+          onBotStartedSpeaking: () => { avatar.classList.add("speaking"); if (!currentBotBubble) currentBotBubble = newBubble("bot"); },
+          onBotStoppedSpeaking: () => { avatar.classList.remove("speaking"); currentBotBubble = null; },
+          onBotTtsText: (data) => onBotText(data?.text),
+          onUserTranscript: (data) => onUser(data?.text, !!data?.final),
+          // Remote media: play the bot's audio track (skip our own local mic).
+          onTrackStarted: (track, participant) => {
+            if (track && track.kind === "audio" && !participant?.local) attachBotAudio(track);
+          },
+          onTrackStopped: (track, participant) => {
+            if (track && track.kind === "audio" && !participant?.local) console.log("[phone] bot audio track stopped:", track.id);
+          },
+        },
+      });
+
+      try {
+        // Same flow the Playground uses: POST /start → session → SDP offer.
+        await client.connect({
+          endpoint: "/start",
+          requestData: { createDailyRoom: false, enableDefaultIceServers: true, transport: "webrtc" },
+        });
+      } catch (e) {
+        console.error("connect failed", e);
+        errorMsg.textContent = "We couldn't start the call. Please try again.";
+        teardown("error");
+      }
+    }
+
+    function enterInCall() {
+      clearTimeout(ringTimer);
+      avatar.classList.remove("pulsing");
+      clearTranscript();
+      setState("incall");
+      startTimer();
+    }
+
+    // Fully disconnect + null out everything. Idempotent.
+    async function teardown(nextState) {
+      clearTimeout(ringTimer);
+      stopTimer();
+      avatar.classList.remove("pulsing", "speaking");
+      statusEl.textContent = "";
+      muted = false; btnMute.classList.remove("on"); muteLabel.textContent = "Mute";
+      const c = client;
+      client = null;                       // drop the reference first
+      if (c) { try { await c.disconnect(); } catch (e) { console.warn("disconnect", e); } }
+      teardownAudio();                     // stop + remove the per-call audio sink
+      setState(nextState || "idle");
+    }
+
+    function toggleMute() {
+      if (!client) return;
+      muted = !muted;
+      try { client.enableMic(!muted); } catch (e) { console.warn("enableMic", e); }
+      btnMute.classList.toggle("on", muted);
+      muteLabel.textContent = muted ? "Unmute" : "Mute";
+    }
+
+    // --- wiring ---
+    document.getElementById("btn-call").addEventListener("click", startCall);
+    document.getElementById("btn-cancel").addEventListener("click", () => teardown("idle"));
+    document.getElementById("btn-end").addEventListener("click", () => teardown("idle"));
+    document.getElementById("btn-mute").addEventListener("click", toggleMute);
+    window.addEventListener("beforeunload", () => { if (client) client.disconnect().catch(() => {}); });
+  </script>
+</body>
+</html>

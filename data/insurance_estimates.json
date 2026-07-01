@@ -1,0 +1,14 @@
+{
+  "_comment": "MOCK out-of-pocket ballparks for an Initial Exam (IE). Demo only — not real benefits data. Amounts in USD.",
+  "carriers": {
+    "blue shield":       { "with_referral": 40,  "without_referral": 120 },
+    "aetna":             { "with_referral": 50,  "without_referral": 140 },
+    "unitedhealthcare":  { "with_referral": 45,  "without_referral": 130 },
+    "cigna":             { "with_referral": 55,  "without_referral": 150 },
+    "kaiser":            { "with_referral": 30,  "without_referral": 90 },
+    "medicare":          { "with_referral": 25,  "without_referral": 80 },
+    "self pay":          { "with_referral": 200, "without_referral": 200 },
+    "uninsured":         { "with_referral": 200, "without_referral": 200 }
+  },
+  "default": { "with_referral": 60, "without_referral": 175 }
+}

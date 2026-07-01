@@ -13,9 +13,9 @@
     "datetime": "2026-07-01T10:30:00",
     "provider": "Dr. Priya Patel",
     "visit_type": "IE",
-    "status": "open",
+    "status": "booked",
     "patient_id": "p-001",
-    "booked_at": "2026-06-30T23:11:27"
+    "booked_at": "2026-07-01T15:34:42"
   },
   {
     "slot_id": "slot-3",

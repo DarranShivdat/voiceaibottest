@@ -17,8 +17,5 @@ pipecat-ai-flows
 # Prebuilt SmallWebRTC browser client served at http://localhost:7860/client
 pipecat-ai-small-webrtc-prebuilt
 
-# Optional: real SMS confirmations (only used if TWILIO_* env vars are set)
-twilio
-
 python-dotenv
 loguru

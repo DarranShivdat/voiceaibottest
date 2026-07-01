@@ -1,13 +1,15 @@
-"""Observability: full transcript + per-turn latency.
+"""Observability: full transcript, per-turn latency, and an end-of-call summary.
 
 `TranscriptObserver` taps the pipeline's frame stream to:
   * log every user and agent turn to the console AND a timestamped file in
-    `transcripts/` (the compliance/audit record), and
+    `transcripts/` (the compliance/audit record),
   * log per-turn STT / LLM / TTS time-to-first-byte (TTFB) so we can see whether
-    each turn is under the ~800ms target.
+    each turn is under the ~800ms target, and
+  * print a clean session summary (patient, action taken, appointment, turns,
+    average latency) when the call ends.
 
-Pipecat's built-in `MetricsLogObserver` is used alongside this (in bot.py) for
-detailed per-service metric logging to the console.
+Pipecat's built-in `MetricsLogObserver` runs alongside this (see bot.py) for
+detailed per-service metric logging.
 """
 
 from datetime import datetime
@@ -36,6 +38,17 @@ class TranscriptObserver(BaseObserver):
         self._path = None
         self._bot_buffer: list[str] = []
         self._ttfb: dict[str, float] = {}  # 'STT' | 'LLM' | 'TTS' -> seconds
+        self._flow = None
+        # summary stats
+        self._user_turns = 0
+        self._bot_turns = 0
+        self._turn_totals: list[float] = []  # per-turn TTFB sums (seconds)
+        self._started = False
+        self._closed = False
+
+    def attach_flow(self, flow_manager) -> None:
+        """Give the observer access to flow state for the end-of-call summary."""
+        self._flow = flow_manager
 
     # -- session lifecycle --------------------------------------------------
     def start_session(self) -> None:
@@ -43,11 +56,19 @@ class TranscriptObserver(BaseObserver):
         ts = datetime.now().strftime("%Y%m%d-%H%M%S")
         self._path = TRANSCRIPT_DIR / f"transcript-{ts}.txt"
         self._file = open(self._path, "a", encoding="utf-8")
+        self._started = True
+        self._closed = False
         self._write(f"=== Conversation transcript {datetime.now().isoformat(timespec='seconds')} ===")
         logger.info(f"📝 Saving transcript to {self._path}")
 
     def close(self) -> None:
+        if self._closed or not self._started:
+            # Never started (e.g. connect failed before greeting) — nothing to
+            # summarize; keep teardown quiet.
+            return
+        self._closed = True
         self._flush_bot_turn()
+        self._print_summary()
         if self._file:
             self._write("=== End of transcript ===")
             self._file.close()
@@ -64,6 +85,7 @@ class TranscriptObserver(BaseObserver):
         if self._bot_buffer:
             self._write("BOT:  " + " ".join(self._bot_buffer).strip())
             self._bot_buffer = []
+            self._bot_turns += 1
             self._emit_latency()
 
     def _emit_latency(self) -> None:
@@ -77,12 +99,46 @@ class TranscriptObserver(BaseObserver):
                 parts.append(f"{kind}={val * 1000:.0f}ms")
                 total += val
         if parts:
+            self._turn_totals.append(total)
             status = "OK" if total < 0.8 else "OVER"
             self._write(
                 f"⏱  turn latency: {' '.join(parts)} | TTFB sum={total * 1000:.0f}ms "
                 f"(target <800ms: {status})"
             )
         self._ttfb = {}
+
+    def _print_summary(self) -> None:
+        state = getattr(self._flow, "state", {}) if self._flow else {}
+        patient_name = state.get("patient_name") or "(unknown)"
+        is_new = state.get("is_new")
+        who = "new" if is_new else "existing" if is_new is not None else "?"
+        outcome = state.get("outcome") or ("registered" if state.get("registered") else "no action")
+        appt = state.get("appointment")
+        estimate = state.get("estimate")
+        avg_ms = (sum(self._turn_totals) / len(self._turn_totals) * 1000) if self._turn_totals else 0.0
+
+        lines = [
+            "",
+            "================= CALL SUMMARY =================",
+            f"Patient:      {patient_name} ({who})",
+            f"Action:       {outcome}",
+        ]
+        if appt:
+            lines.append(f"Appointment:  {appt.get('when')} with {appt.get('provider')}")
+        if estimate:
+            lines.append(f"Est. cost:    ~${estimate.get('estimate_usd')} out of pocket (mock estimate)")
+        if state.get("callback_number"):
+            lines.append(f"Callback:     {state['callback_number']}")
+        lines += [
+            f"Turns:        {self._user_turns + self._bot_turns} "
+            f"({self._user_turns} caller / {self._bot_turns} agent)",
+            f"Avg latency:  {avg_ms:.0f}ms TTFB/turn (target <800ms)",
+        ]
+        if self._path:
+            lines.append(f"Transcript:   {self._path}")
+        lines.append("================================================")
+        for ln in lines:
+            self._write(ln)
 
     # -- frame tap ----------------------------------------------------------
     async def on_push_frame(self, data: FramePushed) -> None:
@@ -93,9 +149,9 @@ class TranscriptObserver(BaseObserver):
         if isinstance(frame, TranscriptionFrame) and isinstance(src, STTService):
             text = (getattr(frame, "text", "") or "").strip()
             if text:
-                # A new user turn implicitly closes any pending bot turn.
-                self._flush_bot_turn()
+                self._flush_bot_turn()  # a new user turn closes any pending bot turn
                 self._write(f"USER: {text}")
+                self._user_turns += 1
 
         # Agent speech: accumulate the spoken text chunks for this turn.
         elif isinstance(frame, TTSTextFrame) and isinstance(src, TTSService):
