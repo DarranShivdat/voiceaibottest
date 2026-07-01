@@ -3,30 +3,66 @@
     "patient_id": "p-001",
     "name": "Maria Garcia",
     "dob": "1985-03-12",
-    "phone": "+14155550142"
+    "phone": "+14155550142",
+    "email": "maria.garcia@example.com",
+    "insurance": {
+      "carrier": "Blue Shield",
+      "member_id": "BS1234567"
+    }
   },
   {
     "patient_id": "p-002",
     "name": "James Chen",
     "dob": "1990-11-23",
-    "phone": "+14155550173"
+    "phone": "+14155550173",
+    "email": "james.chen@example.com",
+    "insurance": {
+      "carrier": "Aetna",
+      "member_id": "AET889201"
+    }
   },
   {
     "patient_id": "p-003",
     "name": "Aisha Mohammed",
     "dob": "1978-07-04",
-    "phone": "+14155550190"
+    "phone": "+14155550190",
+    "email": "aisha.mohammed@example.com",
+    "insurance": {
+      "carrier": "UnitedHealthcare",
+      "member_id": "UHC556677"
+    }
   },
   {
     "patient_id": "p-004",
     "name": "Robert Johnson",
     "dob": "1965-01-30",
-    "phone": "+14155550118"
+    "phone": "+14155550118",
+    "email": "robert.johnson@example.com",
+    "insurance": {
+      "carrier": "Medicare",
+      "member_id": "MED443322"
+    }
   },
   {
     "patient_id": "p-005",
     "name": "Emily Nguyen",
     "dob": "2001-09-15",
-    "phone": "+14155550166"
+    "phone": "+14155550166",
+    "email": "emily.nguyen@example.com",
+    "insurance": {
+      "carrier": "Cigna",
+      "member_id": "CIG778812"
+    }
+  },
+  {
+    "patient_id": "p-006",
+    "name": "David Okafor",
+    "dob": "1972-05-08",
+    "phone": "+14155550151",
+    "email": "david.okafor@example.com",
+    "insurance": {
+      "carrier": "Kaiser",
+      "member_id": "KP9911002"
+    }
   }
 ]
