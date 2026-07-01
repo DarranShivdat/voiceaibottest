@@ -157,9 +157,9 @@ class FlowEngine:
         prompt = self._render_text(spec["prompt"], {**self.branding, **state})
         instructions = (
             f"{prompt}\n\n"
-            "Listen to the caller's answer, then decide which single category below "
-            "best matches what they need and call categorize_intent with that "
-            f"category name:\n{catalog}\n"
+            "Ask the caller that question. When they respond, call categorize_intent "
+            "with the single category below that best matches what they need; do not "
+            f"read the category names aloud:\n{catalog}\n"
             'If none of these clearly match, use "none".'
         )
 
