@@ -18,3 +18,13 @@ Fix:
 Note: "required fields" and "conditional confirmation actions" are config-layer
 building blocks (different clinics require different fields), not one-off fixes.
 Fold into the generality layer rather than hardcoding.
+
+## STT mis-transcription of medical/domain terms
+Deepgram mis-hears domain words — e.g. "Dr." transcribed as "drive". Higher risk
+for a medical product: misheard provider/drug names mean the agent acts on wrong
+data. Fix: Deepgram keyterm/keyword boosting (feed expected terms — provider
+names, "Dr.", common drugs, clinic name). Per-clinic config, not a one-off.
+
+## Turn detection over-sensitive to background noise
+VAD triggers on background noise. Levers: VADParams confidence (toward 0.8),
+stop_secs. Tune against real clinic-call recordings, not a quiet room.
