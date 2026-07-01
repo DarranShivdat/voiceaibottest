@@ -22,7 +22,9 @@
     "datetime": "2026-07-01T14:00:00",
     "provider": "Dr. Alan Smith",
     "visit_type": "IE",
-    "status": "open"
+    "status": "booked",
+    "patient_id": "p-001",
+    "booked_at": "2026-07-01T17:54:32"
   },
   {
     "slot_id": "slot-4",

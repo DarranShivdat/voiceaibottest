@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Flow Builder — __CLINIC_NAME__</title>
+
+<!-- React Flow via esm.sh CDN (same self-contained pattern /phone uses for its SDK).
+     No build step: React + reactflow are pinned in the importmap and the app is
+     written with htm (JSX-like templates bound to React.createElement). -->
+<link rel="stylesheet" href="https://esm.sh/reactflow@11.11.4/dist/style.css" />
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@18.3.1",
+    "react/jsx-runtime": "https://esm.sh/react@18.3.1/jsx-runtime",
+    "react-dom": "https://esm.sh/react-dom@18.3.1?external=react",
+    "react-dom/client": "https://esm.sh/react-dom@18.3.1/client?external=react",
+    "reactflow": "https://esm.sh/reactflow@11.11.4?external=react,react-dom",
+    "htm": "https://esm.sh/htm@3.1.1"
+  }
+}
+</script>
+
+<style>
+  :root {
+    --ink:#0f172a; --muted:#64748b; --line:#e2e8f0; --head:#0f766e;
+    --accent:#f59e0b; --band:#f8fafc; --bg:#f1f5f9;
+    --say:#0ea5e9; --collect:#8b5cf6; --collectc:#d946ef; --branch:#f59e0b;
+    --categorize:#ec4899; --tool:#14b8a6; --handoff:#ef4444; --end:#10b981;
+  }
+  * { box-sizing:border-box; }
+  html, body, #root { height:100%; margin:0; }
+  body {
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink); background:var(--bg); overflow:hidden;
+  }
+  .app { display:flex; flex-direction:column; height:100vh; }
+
+  /* Top bar */
+  .topbar {
+    display:flex; align-items:center; gap:10px; padding:10px 16px;
+    background:#fff; border-bottom:1px solid var(--line); flex-wrap:wrap;
+  }
+  .topbar h1 { font-size:16px; margin:0 12px 0 0; color:var(--head); letter-spacing:.4px; white-space:nowrap; }
+  .topbar .tag { font-size:11px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.6px; }
+  .topbar .spacer { flex:1; }
+  select, input[type=text], textarea {
+    font:inherit; color:var(--ink); border:1px solid var(--line); border-radius:8px;
+    padding:6px 9px; background:#fff;
+  }
+  textarea { width:100%; resize:vertical; line-height:1.4; }
+  button {
+    font:inherit; font-weight:600; border:1px solid var(--line); border-radius:8px;
+    padding:6px 12px; background:#fff; cursor:pointer; color:var(--ink); white-space:nowrap;
+  }
+  button:hover { background:var(--band); }
+  button.primary { background:var(--head); border-color:var(--head); color:#fff; }
+  button.primary:hover { filter:brightness(1.06); }
+  button.danger { color:#b91c1c; border-color:#fecaca; background:#fef2f2; }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+
+  /* Body layout */
+  .body { flex:1; display:flex; min-height:0; }
+  .palette {
+    width:190px; background:#fff; border-right:1px solid var(--line); padding:12px;
+    overflow:auto; flex-shrink:0;
+  }
+  .palette h2, .panel h2 {
+    font-size:11px; text-transform:uppercase; letter-spacing:.6px; color:var(--head);
+    margin:2px 0 8px;
+  }
+  .palette .addbtn {
+    display:flex; align-items:center; gap:8px; width:100%; text-align:left;
+    margin-bottom:6px; padding:7px 9px; font-size:13px;
+  }
+  .swatch { width:11px; height:11px; border-radius:3px; flex-shrink:0; }
+  .canvas { flex:1; min-width:0; position:relative; }
+
+  /* Right properties panel */
+  .panel {
+    width:340px; background:#fff; border-left:1px solid var(--line); padding:14px;
+    overflow:auto; flex-shrink:0;
+  }
+  .panel .empty { color:var(--muted); font-size:13px; margin-top:20px; text-align:center; }
+  .field { margin-bottom:12px; }
+  .field label { display:block; font-size:12px; font-weight:650; color:#334155; margin-bottom:4px; }
+  .field .hint { font-size:11px; color:var(--muted); font-weight:400; }
+  .row { display:flex; gap:6px; align-items:center; }
+  .row > input[type=text] { flex:1; min-width:0; }
+  .chk { display:flex; align-items:center; gap:6px; font-size:13px; font-weight:400; margin-bottom:4px; }
+  .badge {
+    display:inline-block; font-size:11px; font-weight:700; color:#fff; padding:2px 8px;
+    border-radius:999px; letter-spacing:.3px;
+  }
+  .subcard { border:1px solid var(--line); border-radius:8px; padding:9px; margin-bottom:8px; background:var(--band); }
+  .subcard .row { margin-bottom:5px; }
+  .smalllbl { font-size:11px; color:var(--muted); margin-bottom:2px; }
+  .fnlist { max-height:150px; overflow:auto; border:1px solid var(--line); border-radius:8px; padding:8px; }
+
+  /* Custom node */
+  .rf-node {
+    background:#fff; border:2px solid var(--line); border-radius:10px; padding:9px 12px;
+    min-width:150px; max-width:220px; box-shadow:0 1px 3px rgba(15,23,42,.08);
+  }
+  .rf-node.sel { box-shadow:0 0 0 3px rgba(15,118,110,.35); }
+  .rf-node .nid { font-weight:700; font-size:13px; color:var(--ink); word-break:break-word; }
+  .rf-node .ntype { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; margin-top:2px; }
+  .rf-node .ninit { font-size:10px; color:var(--accent); font-weight:700; margin-top:3px; }
+  .rf-node .nprev { font-size:11px; color:var(--muted); margin-top:5px; line-height:1.3;
+                    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .react-flow__handle { width:9px; height:9px; background:var(--head); border:2px solid #fff; }
+
+  /* Toast */
+  .toast {
+    position:fixed; bottom:18px; left:50%; transform:translateX(-50%);
+    background:var(--ink); color:#fff; padding:9px 16px; border-radius:8px; font-size:13px;
+    box-shadow:0 4px 14px rgba(0,0,0,.25); z-index:50; max-width:80vw;
+  }
+  .toast.err { background:#b91c1c; }
+  .dim-note { font-size:11px; color:var(--muted); background:var(--band); border:1px dashed var(--line);
+              border-radius:8px; padding:8px; margin-bottom:12px; }
+  a.navlink { color:var(--head); font-size:12px; text-decoration:none; font-weight:600; }
+  a.navlink:hover { text-decoration:underline; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="module">
+import React, { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { createRoot } from "react-dom/client";
+import htm from "htm";
+import ReactFlow, {
+  Background, Controls, MiniMap, Handle, Position,
+  applyNodeChanges, applyEdgeChanges,
+} from "reactflow";
+
+const html = htm.bind(React.createElement);
+
+/* ---- node type metadata --------------------------------------------------- */
+const NODE_TYPES = [
+  { key: "say",            label: "Say",              color: "var(--say)" },
+  { key: "collect",        label: "Collect (fixed)",  color: "var(--collect)" },
+  { key: "collect-custom", label: "Collect (custom)", color: "var(--collectc)" },
+  { key: "branch",         label: "Branch",           color: "var(--branch)" },
+  { key: "categorize",     label: "Categorize",       color: "var(--categorize)" },
+  { key: "tool",           label: "Tool",             color: "var(--tool)" },
+  { key: "handoff",        label: "Handoff",          color: "var(--handoff)" },
+  { key: "end",            label: "End",              color: "var(--end)" },
+];
+const COLOR = {
+  say:"var(--say)", collect:"var(--collect)", categorize:"var(--categorize)",
+  branch:"var(--branch)", tool:"var(--tool)", handoff:"var(--handoff)", end:"var(--end)",
+};
+// A collect node with a `fields` list is the clinic-defined custom-question variant.
+function visualType(node) {
+  if (node.type === "collect" && Array.isArray(node.fields)) return "collect-custom";
+  return node.type || "say";
+}
+function colorFor(node) {
+  return visualType(node) === "collect-custom" ? "var(--collectc)" : (COLOR[node.type] || "var(--muted)");
+}
+
+/* ---- edge derivation (a VIEW over the config; never mutates it) ------------ */
+// Pull every node-id goto target out of a function behavior (handles guards,
+// plain goto, nested routes, and {cond, then, else} conditionals).
+function collectGoto(goto, acc) {
+  if (!goto) return;
+  if (typeof goto === "string") { acc.push(goto); return; }
+  if (typeof goto === "object" && "cond" in goto) {
+    collectGoto(goto.then, acc);
+    collectGoto(goto.else, acc);
+  }
+}
+function collectRoutes(routes, acc) {
+  (routes || []).forEach((r) => { collectGoto(r.goto, acc); collectRoutes(r.routes, acc); });
+}
+function behaviorTargets(behavior) {
+  const acc = [];
+  if (!behavior) return acc;
+  (behavior.guards || []).forEach((g) => collectGoto(g.goto, acc));
+  collectGoto(behavior.goto, acc);
+  collectRoutes(behavior.routes, acc);
+  return acc;
+}
+
+function computeEdges(flow) {
+  const nodeIds = new Set(Object.keys(flow.nodes || {}));
+  const edges = [];
+  const seen = new Set();
+  const add = (source, target, label, dashed) => {
+    if (!target || !nodeIds.has(target)) return;
+    const id = `${source}=>${target}#${label}`;
+    if (seen.has(id)) return;
+    seen.add(id);
+    edges.push({
+      id, source, target, label,
+      type: "smoothstep", animated: false,
+      style: dashed ? { stroke: "#94a3b8", strokeDasharray: "5 4" } : { stroke: "#64748b" },
+      labelStyle: { fontSize: 10, fill: "#475569" },
+      labelBgStyle: { fill: "#fff", fillOpacity: 0.85 },
+      markerEnd: { type: "arrowclosed", color: dashed ? "#94a3b8" : "#64748b" },
+    });
+  };
+
+  for (const [id, node] of Object.entries(flow.nodes || {})) {
+    const vt = visualType(node);
+    if (node.type === "categorize") {
+      (node.buckets || []).forEach((b) => add(id, b.next, b.name || "bucket"));
+      add(id, node.fallback, "fallback", true);
+    } else if (vt === "collect-custom") {
+      add(id, node.next, "next");
+    }
+    // Every node's exposed functions imply routing via their behaviors.
+    (node.functions || []).forEach((fn) => {
+      const def = (flow.functions || {})[fn];
+      if (!def) return;
+      behaviorTargets(def.behavior).forEach((t) => add(id, t, fn, true));
+    });
+  }
+  return edges;
+}
+
+/* ---- auto layout (editor-only; positions are NOT written to the flow) ------ */
+function layout(flow, edges) {
+  const ids = Object.keys(flow.nodes || {});
+  const pos = {};
+  const level = {};
+  const adj = {};
+  ids.forEach((i) => (adj[i] = []));
+  edges.forEach((e) => { if (adj[e.source]) adj[e.source].push(e.target); });
+
+  const start = flow.initial_node && flow.nodes[flow.initial_node] ? flow.initial_node : ids[0];
+  const queue = [];
+  if (start) { level[start] = 0; queue.push(start); }
+  while (queue.length) {
+    const cur = queue.shift();
+    for (const nxt of adj[cur] || []) {
+      if (level[nxt] === undefined) { level[nxt] = level[cur] + 1; queue.push(nxt); }
+    }
+  }
+  let orphan = 0;
+  ids.forEach((i) => { if (level[i] === undefined) level[i] = -1; });
+  const byLevel = {};
+  ids.forEach((i) => {
+    const lv = level[i] === -1 ? (orphan++, 0) : level[i]; // orphans stacked at far right col below
+    (byLevel[level[i]] = byLevel[level[i]] || []).push(i);
+  });
+  const maxLevel = Math.max(0, ...ids.map((i) => level[i]).filter((n) => n >= 0));
+  Object.entries(byLevel).forEach(([lv, group]) => {
+    const l = parseInt(lv, 10);
+    const col = l === -1 ? maxLevel + 1 : l;
+    group.forEach((i, idx) => {
+      pos[i] = { x: col * 280 + 40, y: idx * 120 + 40 };
+    });
+  });
+  return pos;
+}
+
+/* ---- custom React Flow node ----------------------------------------------- */
+function FlowNode({ id, data }) {
+  const node = data.node;
+  const vt = visualType(node);
+  const preview = node.instructions || node.prompt ||
+    (Array.isArray(node.fields) && node.fields.map((f) => f.question).join(" · ")) || "";
+  return html`
+    <div class=${"rf-node" + (data.selected ? " sel" : "")} style=${{ borderColor: colorFor(node) }}>
+      <${Handle} type="target" position=${Position.Top} />
+      <div class="nid">${id}</div>
+      <div class="ntype" style=${{ color: colorFor(node) }}>${vt}</div>
+      ${data.isInitial && html`<div class="ninit">● initial node</div>`}
+      ${preview && html`<div class="nprev">${preview}</div>`}
+      <${Handle} type="source" position=${Position.Bottom} />
+    </div>`;
+}
+const nodeTypes = { flowNode: FlowNode };
+
+/* ---- blank flow scaffold for CREATE --------------------------------------- */
+const DEFAULT_PERSONA =
+  "You are {ASSISTANT_NAME}, a warm, efficient front-desk scheduling assistant for {CLINIC_NAME}. " +
+  "You are on a phone call. Speak naturally and keep every reply to one or two short sentences. " +
+  "Never speak stage directions, asides, or descriptions of your own actions. Only speak words meant for the caller to hear.";
+
+function blankFlow() {
+  return {
+    name: "Untitled flow",
+    initial_node: "greeting",
+    persona: DEFAULT_PERSONA,
+    functions: {},
+    nodes: {
+      greeting: {
+        type: "say",
+        context: "reset",
+        instructions: "Warmly greet the caller and introduce yourself.",
+        functions: [],
+      },
+    },
+  };
+}
+
+// Minimal, engine-valid skeletons for palette-added nodes.
+function newNodeSkeleton(vtype) {
+  switch (vtype) {
+    case "collect-custom":
+      return {
+        type: "collect",
+        prompt: "Ask the caller the following:",
+        fields: [{ question: "", field: "", required: false }],
+        next: "",
+        functions: [],
+      };
+    case "categorize":
+      return { type: "categorize", prompt: "How can I help you today?", buckets: [], fallback: "" };
+    case "handoff":
+    case "end":
+      return { type: vtype, instructions: "", functions: [] };
+    default: // say, collect (fixed), branch, tool
+      return { type: vtype, instructions: "", functions: [] };
+  }
+}
+
+/* ========================================================================== */
+function App() {
+  // The parsed flow config is the single source of truth. We mutate it in place
+  // and re-render via `rev`; export = this object stringified, so an unedited
+  // load→export is byte-identical in structure (round-trip safe).
+  const flowRef = useRef(null);
+  const posRef = useRef({});         // editor-only node positions (never saved)
+  const [rev, setRev] = useState(0);
+  const bump = useCallback(() => setRev((r) => r + 1), []);
+
+  const [rfNodes, setRfNodes] = useState([]);
+  const [rfEdges, setRfEdges] = useState([]);
+  const [selected, setSelected] = useState(null);
+  const [showFlowSettings, setShowFlowSettings] = useState(false);
+
+  const [flowList, setFlowList] = useState([]);
+  const [pickFile, setPickFile] = useState("");
+  const [loadedName, setLoadedName] = useState("");
+  const [saveName, setSaveName] = useState("");
+  const [toast, setToast] = useState(null);
+
+  const showToast = useCallback((msg, err) => {
+    setToast({ msg, err });
+    setTimeout(() => setToast(null), 3200);
+  }, []);
+
+  /* rebuild the React Flow view from the current flow config */
+  const rebuild = useCallback((relayout) => {
+    const flow = flowRef.current;
+    if (!flow) { setRfNodes([]); setRfEdges([]); return; }
+    const edges = computeEdges(flow);
+    if (relayout || Object.keys(posRef.current).length === 0) {
+      posRef.current = layout(flow, edges);
+    }
+    // keep positions for any node lacking one (newly added)
+    const auto = layout(flow, edges);
+    const nodes = Object.entries(flow.nodes || {}).map(([id, node]) => ({
+      id,
+      type: "flowNode",
+      position: posRef.current[id] || auto[id] || { x: 60, y: 60 },
+      data: {
+        node,
+        isInitial: flow.initial_node === id,
+        selected: selected === id,
+      },
+    }));
+    setRfNodes(nodes);
+    setRfEdges(edges);
+  }, [selected]);
+
+  useEffect(() => { rebuild(false); }, [rev, selected, rebuild]);
+
+  /* ---- load flow list on mount ---- */
+  useEffect(() => {
+    fetch("/api/flows").then((r) => r.json()).then((d) => setFlowList(d.flows || []))
+      .catch(() => showToast("Could not list flows", true));
+  }, [showToast]);
+
+  /* ---- load a flow ---- */
+  const loadFlow = useCallback(async (name) => {
+    if (!name) return;
+    try {
+      const res = await fetch(`/api/flows/${encodeURIComponent(name)}`);
+      if (!res.ok) throw new Error(await res.text());
+      const text = await res.text();
+      flowRef.current = JSON.parse(text);   // preserves key order
+      posRef.current = {};
+      setSelected(null);
+      setLoadedName(name);
+      setSaveName(name);
+      rebuild(true);
+      bump();
+      showToast(`Loaded ${name}.json`);
+    } catch (e) {
+      showToast(`Load failed: ${e.message}`, true);
+    }
+  }, [rebuild, bump, showToast]);
+
+  /* ---- create blank ---- */
+  const createNew = useCallback(() => {
+    flowRef.current = blankFlow();
+    posRef.current = {};
+    setSelected(null);
+    setLoadedName("");
+    setSaveName("");
+    rebuild(true);
+    bump();
+    showToast("New blank flow created");
+  }, [rebuild, bump, showToast]);
+
+  /* ---- save ---- */
+  const save = useCallback(async () => {
+    const flow = flowRef.current;
+    if (!flow) return;
+    let name = (saveName || "").trim().replace(/\.json$/i, "");
+    if (!name) { showToast("Enter a file name to save", true); return; }
+    if (!/^[A-Za-z0-9_-]+$/.test(name)) {
+      showToast("File name: letters, numbers, - and _ only", true); return;
+    }
+    if (!flow.nodes || !flow.nodes[flow.initial_node]) {
+      showToast(`initial_node "${flow.initial_node}" is not a defined node`, true); return;
+    }
+    try {
+      const body = JSON.stringify(flow, null, 2);
+      const res = await fetch(`/api/flows/${encodeURIComponent(name)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body,
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || res.statusText);
+      showToast(`Saved flows/${d.file}`);
+      setLoadedName(name);
+      // refresh list
+      fetch("/api/flows").then((r) => r.json()).then((x) => setFlowList(x.flows || []));
+    } catch (e) {
+      showToast(`Save failed: ${e.message}`, true);
+    }
+  }, [saveName, showToast]);
+
+  /* ---- export (download) without saving ---- */
+  const exportJson = useCallback(() => {
+    const flow = flowRef.current;
+    if (!flow) return;
+    const blob = new Blob([JSON.stringify(flow, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `${saveName || "flow"}.json`; a.click();
+    URL.revokeObjectURL(url);
+  }, [saveName]);
+
+  /* ---- add node from palette ---- */
+  const addNode = useCallback((vtype) => {
+    const flow = flowRef.current;
+    if (!flow) { showToast("Create or load a flow first", true); return; }
+    let id = prompt(`New ${vtype} node id (letters, numbers, _ , -):`, "");
+    if (!id) return;
+    id = id.trim();
+    if (!/^[A-Za-z0-9_-]+$/.test(id)) { showToast("Invalid node id", true); return; }
+    if (flow.nodes[id]) { showToast(`Node "${id}" already exists`, true); return; }
+    flow.nodes[id] = newNodeSkeleton(vtype);
+    // place near center-ish so it's visible; user can drag
+    posRef.current[id] = { x: 320, y: 320 };
+    setSelected(id);
+    bump();
+  }, [bump, showToast]);
+
+  /* ---- React Flow interactions ---- */
+  const onNodesChange = useCallback((changes) => {
+    setRfNodes((nds) => {
+      const next = applyNodeChanges(changes, nds);
+      // persist positions to editor memory
+      next.forEach((n) => { posRef.current[n.id] = n.position; });
+      return next;
+    });
+  }, []);
+  const onEdgesChange = useCallback((changes) => {
+    setRfEdges((eds) => applyEdgeChanges(changes, eds));
+  }, []);
+
+  const onNodeClick = useCallback((_e, n) => setSelected(n.id), []);
+  const onPaneClick = useCallback(() => setSelected(null), []);
+
+  // Drag-to-connect: set routing where a node HAS a node-level target.
+  const onConnect = useCallback((c) => {
+    const flow = flowRef.current;
+    const src = flow.nodes[c.source];
+    if (!src) return;
+    if (visualType(src) === "collect-custom") {
+      src.next = c.target;
+      showToast(`${c.source}.next → ${c.target}`);
+      bump();
+    } else if (src.type === "categorize") {
+      if (!src.fallback) src.fallback = c.target;
+      else (src.buckets = src.buckets || []).push({ name: "new_bucket", description: "", next: c.target });
+      showToast(`categorize routing → ${c.target} (edit name/description in panel)`);
+      bump();
+    } else {
+      showToast("This node routes via its functions' goto — edit in the panel", true);
+    }
+  }, [bump, showToast]);
+
+  const flow = flowRef.current;
+  const nodeIdList = flow ? Object.keys(flow.nodes || {}) : [];
+
+  return html`
+    <div class="app">
+      <div class="topbar">
+        <h1>Flow Builder</h1>
+        <span class="tag">__CLINIC_NAME__</span>
+        <div class="spacer"></div>
+        <select value=${pickFile} onChange=${(e) => setPickFile(e.target.value)}>
+          <option value="">— pick a flow —</option>
+          ${flowList.map((f) => html`<option key=${f.name} value=${f.name}>${f.title} (${f.file})</option>`)}
+        </select>
+        <button onClick=${() => loadFlow(pickFile)} disabled=${!pickFile}>Load</button>
+        <button onClick=${createNew}>New</button>
+        <button onClick=${() => setShowFlowSettings((s) => !s)} disabled=${!flow}>Flow settings</button>
+        <div style=${{ width: "1px", height: "24px", background: "var(--line)" }}></div>
+        <input type="text" placeholder="filename" style=${{ width: "150px" }}
+               value=${saveName} onChange=${(e) => setSaveName(e.target.value)} />
+        <button onClick=${exportJson} disabled=${!flow}>Export</button>
+        <button class="primary" onClick=${save} disabled=${!flow}>Save to flows/</button>
+        <a class="navlink" href="/phone" target="_blank" style=${{ marginLeft: "8px" }}>/phone ↗</a>
+      </div>
+
+      <div class="body">
+        <!-- palette -->
+        <div class="palette">
+          <h2>Add node</h2>
+          ${NODE_TYPES.map((t) => html`
+            <button key=${t.key} class="addbtn" onClick=${() => addNode(t.key)}>
+              <span class="swatch" style=${{ background: t.color }}></span>${t.label}
+            </button>`)}
+          <div style=${{ marginTop: "16px" }}></div>
+          <h2>Legend</h2>
+          <div class="dim-note">
+            Solid arrows = direct routing (bucket / next). Dashed arrows = routing
+            via a function's <code>goto</code> or a categorize fallback.
+          </div>
+        </div>
+
+        <!-- canvas -->
+        <div class="canvas">
+          <${ReactFlow}
+            nodes=${rfNodes} edges=${rfEdges}
+            nodeTypes=${nodeTypes}
+            onNodesChange=${onNodesChange} onEdgesChange=${onEdgesChange}
+            onConnect=${onConnect}
+            onNodeClick=${onNodeClick} onPaneClick=${onPaneClick}
+            fitView minZoom=${0.2}>
+            <${Background} gap=${20} color="#e2e8f0" />
+            <${Controls} />
+            <${MiniMap} nodeColor=${(n) => colorFor(n.data.node)} pannable zoomable />
+          <//>
+        </div>
+
+        <!-- properties / flow settings -->
+        <div class="panel">
+          ${showFlowSettings
+            ? html`<${FlowSettings} flow=${flow} bump=${bump} onClose=${() => setShowFlowSettings(false)} />`
+            : (selected && flow && flow.nodes[selected]
+                ? html`<${Props} key=${selected} flow=${flow} nodeId=${selected}
+                          nodeIds=${nodeIdList} bump=${bump} setSelected=${setSelected}
+                          showToast=${showToast} rebuild=${rebuild} posRef=${posRef} />`
+                : html`<div class="empty">Load or create a flow, then click a node to edit it.</div>`)}
+        </div>
+      </div>
+      ${toast && html`<div class=${"toast" + (toast.err ? " err" : "")}>${toast.msg}</div>`}
+    </div>`;
+}
+
+/* ---- flow-level settings (persona / name / initial) ----------------------- */
+function FlowSettings({ flow, bump, onClose }) {
+  const [, force] = useState(0);
+  const set = (k, v) => { flow[k] = v; force((n) => n + 1); bump(); };
+  return html`
+    <h2>Flow settings</h2>
+    <div class="field">
+      <label>Flow name<span class="hint"> (display only)</span></label>
+      <input type="text" style=${{ width: "100%" }} value=${flow.name || ""}
+             onChange=${(e) => set("name", e.target.value)} />
+    </div>
+    <div class="field">
+      <label>Initial node</label>
+      <select style=${{ width: "100%" }} value=${flow.initial_node || ""}
+              onChange=${(e) => set("initial_node", e.target.value)}>
+        ${Object.keys(flow.nodes || {}).map((id) => html`<option key=${id} value=${id}>${id}</option>`)}
+      </select>
+    </div>
+    <div class="field">
+      <label>Persona<span class="hint"> (supports {CLINIC_NAME}, {ASSISTANT_NAME})</span></label>
+      <textarea rows=${10} value=${flow.persona || ""} onChange=${(e) => set("persona", e.target.value)}></textarea>
+    </div>
+    <button onClick=${onClose}>Close</button>`;
+}
+
+/* ---- per-node properties panel -------------------------------------------- */
+function Props({ flow, nodeId, nodeIds, bump, setSelected, showToast, rebuild, posRef }) {
+  const node = flow.nodes[nodeId];
+  const [, force] = useState(0);
+  const touch = () => { force((n) => n + 1); bump(); };
+  const vt = visualType(node);
+  const allFns = Object.keys(flow.functions || {});
+  const otherIds = nodeIds.filter((i) => i !== nodeId);
+
+  const setField = (k, v) => { node[k] = v; touch(); };
+  const delField = (k) => { delete node[k]; touch(); };
+
+  const toggleFn = (fn) => {
+    const cur = node.functions || [];
+    node.functions = cur.includes(fn) ? cur.filter((x) => x !== fn) : [...cur, fn];
+    touch();
+  };
+
+  const setInitial = () => { flow.initial_node = nodeId; touch(); showToast(`"${nodeId}" is now the initial node`); };
+
+  const deleteNode = () => {
+    if (!confirm(`Delete node "${nodeId}"? Edges referencing it will simply not draw.`)) return;
+    delete flow.nodes[nodeId];
+    delete posRef.current[nodeId];
+    if (flow.initial_node === nodeId) {
+      flow.initial_node = Object.keys(flow.nodes)[0] || "";
+    }
+    setSelected(null);
+    bump();
+  };
+
+  /* type-specific editors */
+  const hasFns = ["say", "collect", "branch", "tool", "handoff", "end", "collect-custom"].includes(vt);
+
+  return html`
+    <h2>Node properties</h2>
+    <div class="field">
+      <div class="row">
+        <span class="badge" style=${{ background: colorFor(node) }}>${vt}</span>
+        <strong style=${{ fontSize: "14px" }}>${nodeId}</strong>
+      </div>
+    </div>
+
+    <div class="field">
+      ${flow.initial_node === nodeId
+        ? html`<span style=${{ color: "var(--accent)", fontSize: "12px", fontWeight: 700 }}>● Initial node</span>`
+        : html`<button onClick=${setInitial}>Mark as initial node</button>`}
+    </div>
+
+    ${node.type === "categorize" && html`
+      <div class="field">
+        <label>Prompt<span class="hint"> (the question asked)</span></label>
+        <textarea rows=${3} value=${node.prompt || ""} onChange=${(e) => setField("prompt", e.target.value)}></textarea>
+      </div>
+      <div class="field">
+        <label>Buckets</label>
+        ${(node.buckets || []).map((b, i) => html`
+          <div class="subcard" key=${i}>
+            <div class="smalllbl">name</div>
+            <div class="row"><input type="text" value=${b.name || ""}
+              onChange=${(e) => { b.name = e.target.value; touch(); }} /></div>
+            <div class="smalllbl">description</div>
+            <div class="row"><input type="text" value=${b.description || ""}
+              onChange=${(e) => { b.description = e.target.value; touch(); }} /></div>
+            <div class="smalllbl">next</div>
+            <div class="row">
+              <select value=${b.next || ""} onChange=${(e) => { b.next = e.target.value; touch(); }}>
+                <option value="">—</option>
+                ${nodeIds.map((id) => html`<option key=${id} value=${id}>${id}</option>`)}
+              </select>
+              <button class="danger" onClick=${() => { node.buckets.splice(i, 1); touch(); }}>✕</button>
+            </div>
+          </div>`)}
+        <button onClick=${() => { (node.buckets = node.buckets || []).push({ name: "", description: "", next: "" }); touch(); }}>+ bucket</button>
+      </div>
+      <div class="field">
+        <label>Fallback<span class="hint"> (when no bucket matches)</span></label>
+        <select style=${{ width: "100%" }} value=${node.fallback || ""} onChange=${(e) => setField("fallback", e.target.value)}>
+          <option value="">—</option>
+          ${nodeIds.map((id) => html`<option key=${id} value=${id}>${id}</option>`)}
+        </select>
+      </div>`}
+
+    ${vt === "collect-custom" && html`
+      <div class="field">
+        <label>Prompt<span class="hint"> (intro before questions)</span></label>
+        <textarea rows=${2} value=${node.prompt || ""} onChange=${(e) => setField("prompt", e.target.value)}></textarea>
+      </div>
+      <div class="field">
+        <label>Questions / fields</label>
+        ${(node.fields || []).map((f, i) => html`
+          <div class="subcard" key=${i}>
+            <div class="smalllbl">question (spoken)</div>
+            <div class="row"><input type="text" value=${f.question || ""}
+              onChange=${(e) => { f.question = e.target.value; touch(); }} /></div>
+            <div class="smalllbl">field (stored key)</div>
+            <div class="row"><input type="text" value=${f.field || ""}
+              onChange=${(e) => { f.field = e.target.value; touch(); }} /></div>
+            <div class="row" style=${{ marginTop: "4px" }}>
+              <label class="chk"><input type="checkbox" checked=${!!f.required}
+                onChange=${(e) => { f.required = e.target.checked; touch(); }} /> required</label>
+              <select value=${f.type || "string"} onChange=${(e) => { f.type = e.target.value; touch(); }}>
+                <option value="string">string</option>
+                <option value="boolean">boolean</option>
+                <option value="number">number</option>
+              </select>
+              <button class="danger" onClick=${() => { node.fields.splice(i, 1); touch(); }}>✕</button>
+            </div>
+          </div>`)}
+        <button onClick=${() => { (node.fields = node.fields || []).push({ question: "", field: "", required: false }); touch(); }}>+ question</button>
+      </div>
+      <div class="field">
+        <label>Next node<span class="hint"> (after answers submitted)</span></label>
+        <select style=${{ width: "100%" }} value=${node.next || ""} onChange=${(e) => setField("next", e.target.value)}>
+          <option value="">—</option>
+          ${nodeIds.map((id) => html`<option key=${id} value=${id}>${id}</option>`)}
+        </select>
+      </div>`}
+
+    ${(node.type === "say" || node.type === "branch" || node.type === "tool" ||
+       node.type === "handoff" || node.type === "end" ||
+       (node.type === "collect" && vt !== "collect-custom")) && html`
+      <div class="field">
+        <label>Instructions<span class="hint"> (spoken text / questions — templated)</span></label>
+        <textarea rows=${7} value=${node.instructions || ""} onChange=${(e) => setField("instructions", e.target.value)}></textarea>
+      </div>`}
+
+    ${node.dynamic && html`
+      <div class="field">
+        <div class="dim-note">This node has a <strong>dynamic</strong> block
+          (<code>${node.dynamic.var}</code> from <code>${node.dynamic.source}</code>).
+          Preserved verbatim on save.</div>
+      </div>`}
+
+    ${hasFns && html`
+      <div class="field">
+        <label>Functions exposed<span class="hint"> (LLM-callable at this node)</span></label>
+        ${allFns.length === 0
+          ? html`<div class="hint">No functions defined in this flow's library yet.</div>`
+          : html`<div class="fnlist">
+              ${allFns.map((fn) => html`
+                <label class="chk" key=${fn}>
+                  <input type="checkbox" checked=${(node.functions || []).includes(fn)}
+                         onChange=${() => toggleFn(fn)} /> ${fn}
+                </label>`)}
+            </div>`}
+      </div>`}
+
+    <div class="field">
+      <label class="chk">
+        <input type="checkbox" checked=${node.context === "reset"}
+               onChange=${(e) => { e.target.checked ? setField("context", "reset") : delField("context"); }} />
+        Reset conversation context on entering this node
+      </label>
+    </div>
+
+    <div class="field" style=${{ marginTop: "18px" }}>
+      <button class="danger" onClick=${deleteNode}>Delete node</button>
+    </div>`;
+}
+
+createRoot(document.getElementById("root")).render(html`<${App} />`);
+</script>
+</body>
+</html>
