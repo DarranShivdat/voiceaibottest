@@ -36,6 +36,7 @@
     --cat-dec:#e8930c;   --cat-dec-bg:#fdf3e3;
     --cat-int:#0f9d8f;   --cat-int-bg:#e6f7f3;
     --cat-term:#d95d6d;  --cat-term-bg:#fdeef0;
+    --edge:#aab2c8;
     --ok:#10b981; --err:#ef4444;
     --shadow-sm:0 1px 2px rgba(28,35,51,.06);
     --shadow-md:0 4px 16px rgba(28,35,51,.10);
@@ -105,29 +106,37 @@
   /* ---- body layout ---- */
   .body { flex:1; display:flex; min-height:0; }
 
-  /* palette */
+  /* left rail */
   .palette {
-    width:210px; background:var(--panel); border-right:1px solid var(--line); padding:16px 14px;
+    width:228px; background:var(--panel); border-right:1px solid var(--line); padding:16px 14px 30px;
     overflow:auto; flex-shrink:0;
   }
   .side-h {
     font-size:11px; text-transform:uppercase; letter-spacing:.07em; color:var(--muted);
-    font-weight:700; margin:0 0 10px; padding-left:2px;
+    font-weight:700; margin:0 0 8px; padding-left:2px;
   }
-  .palette .addbtn {
+  .rail-sec { margin-bottom:18px; }
+  .rail-sec .sec-h {
+    display:flex; align-items:center; gap:7px; font-size:11px; font-weight:750;
+    text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:0 0 7px; padding-left:2px;
+  }
+  .pal-item {
     display:flex; align-items:center; gap:10px; width:100%; text-align:left; justify-content:flex-start;
-    margin-bottom:7px; padding:9px 11px; font-size:13.5px; color:var(--ink); font-weight:600;
-    border-color:var(--line);
+    margin-bottom:6px; padding:8px 10px; font-size:13px; color:var(--ink); font-weight:600;
+    border:1px solid var(--line); border-radius:10px; background:#fff; cursor:grab;
   }
-  .palette .addbtn:hover { border-color:var(--brand-100); background:var(--brand-50); }
+  .pal-item:hover { border-color:var(--brand-100); background:var(--brand-50); }
+  .pal-item:active { cursor:grabbing; }
+  .pal-item .pi-body { min-width:0; flex:1; display:block; }
+  .pal-item .pi-name { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .pal-item .pi-sub { display:block; font-size:11px; color:var(--muted); font-weight:500; margin-top:1px;
+                      overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .swatch { width:12px; height:12px; border-radius:4px; flex-shrink:0; }
-  .legend { margin-top:22px; }
-  .legend-row { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted); margin-bottom:8px; }
-  .legend-line { width:26px; height:0; border-top:2px solid #94a3b8; flex-shrink:0; }
-  .legend-line.primary { border-top-color:var(--brand); }
-  .legend-line.gray { border-top-color:#9aa3b8; }
-  .legend-line.dashed { border-top-style:dashed; border-top-color:#a9b1c7; }
-  .legend-sw { width:10px; height:10px; border-radius:4px; flex-shrink:0; }
+  .inuse {
+    flex-shrink:0; font-size:10px; font-weight:750; letter-spacing:.03em; color:#0b7a5e;
+    background:#e6f7f1; border:1px solid #bfe9db; border-radius:999px; padding:2px 8px;
+  }
+  .rail-empty { font-size:11.5px; color:var(--muted); padding:2px 2px 6px; line-height:1.45; }
 
   .canvas { flex:1; min-width:0; position:relative; }
 
@@ -177,56 +186,53 @@
   .section-sep { height:1px; background:var(--line); margin:20px 0; }
 
   /* ---- custom React Flow node ----
-     Prominent cards = the conversation/decision steps a GTM reader cares about;
-     compact cards = utility (tool/terminal) steps. Same layout engine — only
-     the visual weight differs. */
+     The Worktree card: deliberately spare — a small category icon, the step's
+     plain name, ONE line of what's said or asked, and a question count.
+     Everything else lives in the panel a click away. */
   .rf-node {
-    background:#fff; border:1px solid var(--line); border-top-width:3px; border-radius:12px;
-    padding:10px 13px 11px; width:230px; box-shadow:var(--shadow-sm);
-    transition:box-shadow .12s, transform .12s;
+    background:#fff; border:1px solid var(--line); border-top-width:3px; border-radius:11px;
+    padding:9px 11px; width:212px; box-shadow:var(--shadow-sm);
+    transition:box-shadow .12s;
   }
-  .rf-node.compact { width:180px; padding:8px 11px 9px; }
+  .rf-node.ports { width:244px; padding-bottom:0; }
   .rf-node:hover { box-shadow:var(--shadow-md); }
   .rf-node.sel { box-shadow:0 0 0 3px var(--brand-100), var(--shadow-md); }
-  .rf-node .ntop { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:5px; }
-  .rf-node .ntype {
-    display:inline-flex; align-items:center; gap:5px;
-    font-size:9.5px; font-weight:800; text-transform:uppercase; letter-spacing:.06em;
-    padding:2px 8px; border-radius:999px;
+  .rf-node .nhead { display:flex; align-items:flex-start; gap:8px; }
+  .rf-node .nicon {
+    width:22px; height:22px; border-radius:7px; flex-shrink:0; margin-top:1px;
+    display:flex; align-items:center; justify-content:center;
   }
-  .rf-node .ntype .tdot { width:6px; height:6px; border-radius:50%; }
-  .rf-node .ninit { font-size:13px; }
-  .rf-node .nid { font-weight:700; font-size:14px; color:var(--ink); word-break:break-word; letter-spacing:-.01em;
-                  border-radius:6px; padding:1px 3px; margin:0 -3px; cursor:text; }
+  .rf-node .nmain { min-width:0; flex:1; }
+  .rf-node .nid { font-weight:700; font-size:13px; color:var(--ink); letter-spacing:-.01em; line-height:1.35;
+                  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+                  border-radius:6px; padding:0 3px; margin:0 -3px; cursor:text; }
   .rf-node .nid:hover { background:var(--line-soft); }
-  .rf-node.compact .nid { font-size:12.5px; }
   .rf-node .nid-input {
-    font:inherit; font-weight:700; font-size:14px; color:var(--ink); width:100%;
-    border:1px solid var(--brand); border-radius:6px; padding:1px 4px; margin:0 -3px;
+    font:inherit; font-weight:700; font-size:13px; color:var(--ink); width:100%;
+    border:1px solid var(--brand); border-radius:6px; padding:0 4px; margin:0 -3px;
     outline:none; box-shadow:0 0 0 3px var(--brand-50); background:#fff;
   }
-  .rf-node .nprev { font-size:11.5px; color:var(--muted); margin-top:6px; line-height:1.45;
-                    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
-  .rf-node .nprev.one { -webkit-line-clamp:1; }
-  .rf-node.compact .nprev { font-size:11px; margin-top:4px; }
-  /* questions list on a collect card */
-  .rf-node .nq { display:flex; gap:6px; align-items:baseline; margin-top:5px; font-size:11.5px;
-                 color:var(--ink-soft); line-height:1.4; }
-  .rf-node .nq .qdot { flex-shrink:0; width:5px; height:5px; border-radius:50%; position:relative; top:-2px; }
-  .rf-node .nq .qtxt { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
-  .rf-node .nq.more { color:var(--muted); font-style:italic; }
-  /* chips: stored field keys, branch/categorize choices, tool action names */
-  .rf-node .nchips { display:flex; flex-wrap:wrap; gap:4px; margin-top:7px; align-items:center; }
-  .rf-node .nchips .chiplbl { font-size:9.5px; font-weight:700; text-transform:uppercase;
-                              letter-spacing:.05em; color:var(--muted); margin-right:1px; }
-  .rf-node .chip {
-    font-size:10.5px; font-weight:600; color:var(--ink-soft); background:var(--line-soft);
-    border:1px solid var(--line); border-radius:6px; padding:1px 7px; max-width:100%;
+  .rf-node .nline { font-size:11px; color:var(--muted); margin-top:2px; line-height:1.4;
+                    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .rf-node .nqcount {
+    display:inline-flex; margin-top:6px; font-size:10.5px; font-weight:650; color:var(--ink-soft);
+    background:var(--line-soft); border:1px solid var(--line); border-radius:6px; padding:0 7px;
+  }
+  .rf-node .ninit { display:inline-flex; align-items:center; color:var(--brand); flex-shrink:0; margin-top:2px; }
+  /* outcome ports on decision cards: "Existing patient ○ · New patient ○" */
+  .rf-node .nports { display:flex; margin:7px -6px 0; border-top:1px solid var(--line-soft); }
+  .rf-node .nport { position:relative; flex:1; min-width:0; text-align:center; padding:4px 4px 10px; }
+  .rf-node .nport + .nport { border-left:1px solid var(--line-soft); }
+  .rf-node .nport .nport-lbl {
+    display:block; font-size:9.5px; font-weight:650; color:var(--muted); line-height:1.3;
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
   }
-  .rf-node .chip.key { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:10px; }
-  .react-flow__handle { width:10px; height:10px; background:var(--brand); border:2px solid #fff; }
-  .react-flow__edge-path { stroke-width:1.6; }
+  .rf-node .nport .react-flow__handle {
+    position:absolute; bottom:-5px; left:50%; transform:translateX(-50%);
+    width:9px; height:9px; background:#fff; border:2px solid var(--edge);
+  }
+  .react-flow__handle { width:9px; height:9px; background:var(--edge); border:2px solid #fff; }
+  .react-flow__edge-path { stroke-width:1.7; }
   .react-flow__controls { box-shadow:var(--shadow-md); border-radius:10px; overflow:hidden; border:1px solid var(--line); }
   .react-flow__controls-button { border-bottom:1px solid var(--line-soft); }
   .react-flow__minimap { border-radius:10px; overflow:hidden; box-shadow:var(--shadow-sm); border:1px solid var(--line); }
@@ -299,7 +305,6 @@
   /* icon alignment */
   svg.ic { display:block; }
   button svg.ic { flex-shrink:0; }
-  .ninit { display:inline-flex; align-items:center; color:var(--brand); }
   .empty .big svg.ic { opacity:.55; }
 
   /* orphan / not-connected marker on a node card */
@@ -319,27 +324,16 @@
     background:var(--brand-50); border:1px solid var(--brand-100); border-radius:10px;
     padding:9px 10px; margin-bottom:14px; line-height:1.45;
   }
-  .tip svg.ic { color:var(--brand); margin-top:1px; }
-  .palette .adv-h { display:flex; align-items:center; gap:6px; }
-  .palette .adv-sub { font-size:11px; color:var(--muted); margin:-4px 0 10px; padding-left:2px; }
+  .tip svg.ic { color:var(--brand); margin-top:1px; flex-shrink:0; }
 
-  /* ---- insert-on-edge affordance (React Flow edge label layer) ---- */
-  /* z-index 0 keeps labels ABOVE edges but BELOW node cards — a label whose
-     midpoint lands on a card tucks behind it instead of covering its content */
+  /* ---- insert / drop affordances on an edge midpoint ---- */
+  /* resting z-index 0 keeps the layer above edges but below cards; during a
+     drag it jumps above everything so the drop pill is always reachable */
   .edge-lyr {
     position:absolute; pointer-events:all; display:flex; flex-direction:column;
     align-items:center; gap:4px; z-index:0;
   }
-  .edge-tag {
-    background:rgba(255,255,255,.92); border:1px solid var(--line-soft); color:#6b7285;
-    font-size:10px; font-weight:600; padding:0 6px; border-radius:6px; white-space:nowrap;
-    max-width:150px; overflow:hidden; text-overflow:ellipsis;
-  }
-  /* a revealed possible-jump label (edge hovered / endpoint selected) */
-  .edge-tag.emph {
-    background:#fff; border-color:#c7cde0; color:var(--ink-soft);
-    box-shadow:var(--shadow-sm); font-weight:650;
-  }
+  .edge-lyr.drop { z-index:20; }
   .edge-insert {
     display:inline-flex; align-items:center; gap:0; overflow:hidden;
     height:24px; padding:0 6px; border-radius:999px; cursor:pointer;
@@ -352,6 +346,12 @@
     max-width:0; opacity:0; overflow:hidden; white-space:nowrap; transition:max-width .16s, opacity .12s, margin .12s;
   }
   .edge-insert:hover .ei-txt { max-width:90px; opacity:1; margin-left:5px; }
+  .dropzone {
+    background:#fff; border:1.5px solid var(--brand); color:var(--brand-700);
+    font-size:11px; font-weight:700; padding:4px 11px; border-radius:999px;
+    box-shadow:var(--shadow-sm); white-space:nowrap;
+  }
+  .dropzone.over { background:var(--brand); color:#fff; box-shadow:0 2px 10px rgba(94,120,238,.5); }
 
   /* ---- "Advanced" collapsible in the properties panel ---- */
   .adv { border:1px solid var(--line); border-radius:11px; margin:18px 0 4px; overflow:hidden; }
@@ -365,14 +365,7 @@
   .adv-caret.open { transform:rotate(90deg); }
   .adv-body { padding:14px 13px 6px; background:#fff; }
   .adv-body .field:last-child { margin-bottom:10px; }
-
-  /* palette category groups */
-  .pal-group { margin-bottom:14px; }
-  .pal-group .pg-h {
-    display:flex; align-items:center; gap:7px; font-size:11px; font-weight:750;
-    text-transform:uppercase; letter-spacing:.06em; margin:0 0 7px; padding-left:2px;
-  }
-  .pal-group .pg-dot { width:8px; height:8px; border-radius:3px; flex-shrink:0; }
+  .adv-sub { font-size:11px; color:var(--muted); margin:-2px 0 10px; padding-left:2px; line-height:1.45; }
 
   /* undo / redo topbar buttons */
   button.iconbtn { padding:8px 9px; }
@@ -466,6 +459,18 @@ function Icon({ name, size }) {
       return html`<svg ...${a}><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>`;
     case "redo":
       return html`<svg ...${a}><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/></svg>`;
+    case "chat": // speech bubble
+      return html`<svg ...${a}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`;
+    case "help": // question bubble
+      return html`<svg ...${a}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M9.6 8.4a2.4 2.4 0 0 1 4.66.8c0 1.6-2.4 2.2-2.4 2.2"/><line x1="11.9" y1="14.2" x2="11.91" y2="14.2"/></svg>`;
+    case "list":
+      return html`<svg ...${a}><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>`;
+    case "zap":
+      return html`<svg ...${a}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`;
+    case "user":
+      return html`<svg ...${a}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
+    case "box": // component / package
+      return html`<svg ...${a}><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>`;
     default:
       return null;
   }
@@ -529,11 +534,16 @@ const CAT_META = {
   integration:  { label: "Action",       color: "var(--cat-int)",  bg: "var(--cat-int-bg)" },
   terminal:     { label: "Call ends",    color: "var(--cat-term)", bg: "var(--cat-term-bg)" },
 };
-// Human-readable label per visual type, shown on the card and in the panel.
+// Human-readable label per visual type, shown in the panel badge.
 const TYPE_LABEL = {
   say: "Say", collect: "Gather info", "collect-custom": "Ask questions",
   branch: "Decision", categorize: "Direct caller",
   tool: "Run action", handoff: "Hand to human", end: "End call",
+};
+const TYPE_ICON = {
+  say: "chat", collect: "list", "collect-custom": "help",
+  branch: "flow", categorize: "flow",
+  tool: "zap", handoff: "user", end: "flag",
 };
 const NODE_TYPES = [
   { key: "say",            label: "Say something" },
@@ -545,6 +555,13 @@ const NODE_TYPES = [
   { key: "handoff",        label: "Hand to human" },
   { key: "end",            label: "End call" },
 ];
+// Left-rail sections. All existing step types, grouped the way a flow reads:
+// things said, places the call forks, ways it ends.
+const RAIL = [
+  { title: "Conversation", keys: ["say", "collect", "collect-custom", "tool"] },
+  { title: "Decisions",    keys: ["branch", "categorize"] },
+  { title: "Endings",      keys: ["handoff", "end"] },
+];
 // A collect node with a `fields` list is the clinic-defined custom-question variant.
 function visualType(node) {
   if (node.type === "collect" && Array.isArray(node.fields)) return "collect-custom";
@@ -552,8 +569,12 @@ function visualType(node) {
 }
 function catFor(vt) { return CAT_META[CATEGORY[vt] || "conversation"]; }
 function colorFor(node) { return catFor(visualType(node)).color; }
-// "verify_existing_patient" → "verify existing patient" for chips/edge labels.
+// "verify_existing_patient" → "verify existing patient" for labels.
 function humanize(s) { return String(s || "").replace(/_/g, " "); }
+function prettyStep(id) {
+  const s = humanize(id);
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
 // One plain-words line for a decision card: instructions usually open with
 // greeting/tone fluff and bury the actual decision mid-text — prefer the first
 // sentence that asks something ("ask …", "whether …", or ends in "?"); fall
@@ -636,6 +657,14 @@ function inboundRoutes(flow, nodeId) {
   return inbound;
 }
 
+/* ---- edges: ONE quiet style for every connection ---------------------------
+   Whether a step continues via its own `next`, a categorize bucket, or a
+   function goto, the map draws the same plain arrow — how a route is
+   implemented is not the reader's problem. The mechanics still ride along in
+   `data.via` (how to rewire on insert): edges without `via` cannot accept an
+   insert with the existing primitives. Decision-card edges anchor to that
+   card's labeled outcome port via `sourceHandle`. */
+const EDGE_COLOR = "#aab2c8";
 function computeEdges(flow) {
   const nodeIds = new Set(Object.keys(flow.nodes || {}));
   // How many nodes expose each function — only single-use functions are safe to
@@ -646,71 +675,98 @@ function computeEdges(flow) {
 
   const edges = [];
   const seen = new Set();
-  // opts: { kind, display, insertable, via } — `via` describes how to rewire on
-  // insert. `label` still keys the edge id (dedup); `display` is what's shown
-  // (may be "" to hide — keeps the map calm for non-technical readers).
-  // kind: primary (solid brand) | fallback (solid gray) | branch (dashed gray).
-  const STROKE = {
-    primary:  { style: { stroke: "#5E78EE", strokeWidth: 2 }, color: "#5E78EE" },
-    fallback: { style: { stroke: "#9aa3b8", strokeWidth: 1.8 }, color: "#9aa3b8" },
-    branch:   { style: { stroke: "#a9b1c7", strokeDasharray: "6 4", strokeWidth: 1.5 }, color: "#a9b1c7" },
-  };
-  const add = (source, target, label, opts = {}) => {
+  const add = (source, target, key, opts = {}) => {
     if (!target || !nodeIds.has(target)) return;
-    const id = `${source}=>${target}#${label}`;
+    const id = `${source}=>${target}#${key}`;
     if (seen.has(id)) return;
     seen.add(id);
-    const kind = opts.kind || (opts.insertable ? "primary" : "branch");
-    const s = STROKE[kind] || STROKE.branch;
     edges.push({
       id, source, target,
+      ...(opts.sourceHandle ? { sourceHandle: opts.sourceHandle } : {}),
       type: "flowEdge",
-      style: s.style,
-      markerEnd: { type: "arrowclosed", color: s.color, width: 16, height: 16 },
-      data: {
-        label: opts.display !== undefined ? opts.display : label,
-        kind, source, target, insertable: !!opts.insertable, via: opts.via || null,
-      },
+      style: { stroke: EDGE_COLOR, strokeWidth: 1.7 },
+      markerEnd: { type: "arrowclosed", color: EDGE_COLOR, width: 15, height: 15 },
+      data: { source, target, via: opts.via || null },
     });
   };
 
   for (const [id, node] of Object.entries(flow.nodes || {})) {
     const vt = visualType(node);
+    const isDecision = CATEGORY[vt] === "decision";
     if (node.type === "categorize") {
       // Each bucket target is a node-owned linear route → insertable.
       (node.buckets || []).forEach((b, i) =>
-        add(id, b.next, b.name || "bucket",
-            { insertable: true, kind: "primary", display: humanize(b.name || "option"), via: { type: "bucket", index: i } }));
-      // Fallback is a branching/default route → not insertable yet.
-      add(id, node.fallback, "fallback", { kind: "fallback", display: "otherwise" });
+        add(id, b.next, `b${i}`, { via: { type: "bucket", index: i }, sourceHandle: `b:${i}` }));
+      // Fallback is a default route — drawn like everything else, not insertable.
+      add(id, node.fallback, "fb", { sourceHandle: "fb" });
     } else if (vt === "collect-custom") {
-      // The one obvious "then continue to…" — no label needed.
-      add(id, node.next, "next", { insertable: true, kind: "primary", display: "", via: { type: "next" } });
+      add(id, node.next, "next", { via: { type: "next" } });
     }
-    // Routing implied by exposed functions.
+    // Routing implied by exposed functions — same quiet arrow as everything else.
     (node.functions || []).forEach((fn) => {
       const def = (flow.functions || {})[fn];
       if (!def) return;
+      const sh = isDecision ? `f:${fn}` : undefined;
       const linear = simpleLinearGoto(def.behavior);
       if (linear && fnUsage[fn] === 1) {
-        // Single unconditional target, used only here → a linear route we can
-        // insert into by editing this function's goto. Part of the main path,
-        // so no label — it would just repeat what the cards already say.
-        add(id, linear, fn, { insertable: true, kind: "primary", display: "", via: { type: "goto", fn } });
+        // Single unconditional target, used only here → insertable by editing
+        // this one goto value.
+        add(id, linear, fn, { via: { type: "goto", fn }, sourceHandle: sh });
       } else {
-        // Conditional / multi-target / shared → branching (dashed, not insertable).
-        behaviorTargets(def.behavior).forEach((t) => add(id, t, fn, { kind: "branch", display: humanize(fn) }));
+        // Conditional / multi-target / shared → drawn, but not insertable.
+        behaviorTargets(def.behavior).forEach((t) => add(id, t, fn, { sourceHandle: sh }));
       }
     });
   }
   return edges;
 }
 
+/* ---- outcome ports for decision cards ---------------------------------------
+   One labeled port per way the call can leave the card: each categorize bucket,
+   its "otherwise" default, and each behavior-routed outcome. Port ids MUST
+   match the sourceHandle ids computeEdges assigns, or React Flow drops the
+   edge. Ports are display + anchor only — dragging from them is disabled. */
+function decisionPorts(flow, id) {
+  const node = (flow.nodes || {})[id];
+  if (!node || CATEGORY[visualType(node)] !== "decision") return null;
+  const ports = [];
+  (node.buckets || []).forEach((b, i) => ports.push({ id: `b:${i}`, label: prettyStep(b.name || "option") }));
+  if (node.type === "categorize") ports.push({ id: "fb", label: "Otherwise" });
+  (node.functions || []).forEach((fn) => {
+    const def = (flow.functions || {})[fn];
+    if (def && behaviorTargets(def.behavior).length) ports.push({ id: `f:${fn}`, label: prettyStep(fn) });
+  });
+  return ports;
+}
+
+/* ---- is this seam ambiguous? -------------------------------------------------
+   Mechanically every `via` seam inserts the same safe way (repoint one value,
+   point the new step's `next` at the old target). But some positions can
+   surprise the reader — the seam feeds the call's very first step, sits on one
+   branch of a decision, or targets a step several paths converge on. Those get
+   a one-line confirm; everything else inserts silently. Returns the confirm
+   message, or null. */
+function insertConcern(flow, edgeInfo) {
+  const { source, target, via } = edgeInfo || {};
+  if (target && target === flow.initial_node)
+    return `“${prettyStep(target)}” is where every call starts — the new step will be heard just before it, on this path only.`;
+  const src = flow.nodes ? flow.nodes[source] : null;
+  if (src && CATEGORY[visualType(src)] === "decision") {
+    let label = "";
+    if (via && via.type === "bucket") label = humanize((src.buckets && src.buckets[via.index] || {}).name || "option");
+    else if (via && via.fn) label = humanize(via.fn);
+    return `This spot is on the “${label}” path out of “${prettyStep(source)}” — callers only hear the new step when the call goes that way.`;
+  }
+  if (target && inboundRoutes(flow, target).length > 1)
+    return `Several paths lead to “${prettyStep(target)}” — the new step will sit on this one only.`;
+  return null;
+}
+
 /* ---- auto layout (editor-only; positions are NOT written to the flow) ------
    Layered top-to-bottom layout: BFS assigns a depth level from the initial
    node, then a few barycenter sweeps order each row to minimise edge crossings.
    Rows are centred so the tree reads cleanly downward (handles are top/bottom). */
-const H_GAP = 360, V_GAP = 250, PAD = 60; // spacing only — same layout algorithm
+const H_GAP = 300, V_GAP = 185, PAD = 50; // compact cards → the whole flow fits one screen
 function layout(flow) {
   const ids = Object.keys(flow.nodes || {});
   if (!ids.length) return {};
@@ -772,29 +828,28 @@ function layout(flow) {
   return pos;
 }
 
-/* ---- custom React Flow node -----------------------------------------------
-   Self-describing cards: each card summarizes what the step DOES so a reader
-   never has to click. All content is READ from the existing config — nothing
-   here writes to it. Double-click the title to rename in place (delegates to
-   the same rename logic the panel uses — no separate routing rewrite). */
-const CHIP_MAX = 4;
-function Chips({ label, items, mono }) {
-  if (!items || !items.length) return null;
-  const show = items.slice(0, CHIP_MAX);
-  const extra = items.length - show.length;
-  return html`
-    <div class="nchips">
-      ${label && html`<span class="chiplbl">${label}</span>`}
-      ${show.map((c, i) => html`<span key=${i} class=${"chip" + (mono ? " key" : "")}>${c}</span>`)}
-      ${extra > 0 && html`<span class="chip">+${extra} more</span>`}
-    </div>`;
+/* ---- custom React Flow node -------------------------------------------------
+   Compact Worktree card: icon + plain title + one line of what's said/asked +
+   question count. Decision cards additionally show their outcomes as labeled
+   ports along the bottom edge. All content is READ from the existing config —
+   nothing here writes to it. Double-click the title to rename in place
+   (delegates to the same rename logic the panel uses). */
+function cardLine(node) {
+  const vt = visualType(node);
+  if (vt === "collect-custom") {
+    const qs = (node.fields || []).map((f) => f.question).filter(Boolean);
+    return qs[0] || node.prompt || "";
+  }
+  if (node.type === "categorize") return node.prompt || "";
+  if (CATEGORY[vt] === "decision") return decisionSummary(node.instructions || node.prompt);
+  return (String(node.instructions || node.prompt || "").split(/(?<=[.?!])\s+/)[0] || "").trim();
 }
 
 function FlowNode({ id, data }) {
   const node = data.node;
   const vt = visualType(node);
   const cat = catFor(vt);
-  const compact = CATEGORY[vt] === "integration" || CATEGORY[vt] === "terminal";
+  const ports = data.ports;
 
   // -- inline rename (double-click the title) --
   const [editing, setEditing] = useState(false);
@@ -806,96 +861,89 @@ function FlowNode({ id, data }) {
     if (nid && nid !== id && data.onRename) data.onRename(id, nid);
   };
 
-  // -- per-type summary content (display only) --
-  // Deliberately spare: no function-name chips (engineering detail — lives in
-  // the panel's Advanced section and on the dashed jump edges). Decision and
-  // terminal cards get ONE summary line; say/collect two; tool none (its
-  // action chip says it all). Collect keeps its questions + saved keys —
-  // that's the richness a GTM reader actually uses.
-  const questions = vt === "collect-custom"
-    ? (node.fields || []).map((f) => f.question).filter(Boolean) : [];
-  const fieldKeys = vt === "collect-custom"
-    ? (node.fields || []).map((f) => f.field).filter(Boolean) : [];
-  const actions = node.type === "tool" ? (node.functions || []).map(humanize) : [];
-  const oneLine = CATEGORY[vt] === "decision" || CATEGORY[vt] === "terminal";
-  let snippet = "";
-  if (vt !== "collect-custom" && node.type !== "tool") {
-    if (CATEGORY[vt] === "decision") {
-      // categorize's prompt already IS the question; branch needs extraction
-      snippet = (node.type === "categorize" && node.prompt)
-        ? node.prompt : decisionSummary(node.instructions || node.prompt);
-    } else {
-      snippet = node.instructions || node.prompt || "";
-    }
-  }
-  const qShow = questions.slice(0, 3);
+  const line = cardLine(node);
+  const qCount = vt === "collect-custom"
+    ? (node.fields || []).filter((f) => f.question || f.field).length : 0;
 
   return html`
-    <div class=${"rf-node" + (data.selected ? " sel" : "") + (compact ? " compact" : "")}
+    <div class=${"rf-node" + (data.selected ? " sel" : "") + (ports && ports.length ? " ports" : "")}
          style=${{ borderTopColor: cat.color }}>
       <${Handle} type="target" position=${Position.Top} />
-      <div class="ntop">
-        <span class="ntype" style=${{ background: cat.bg, color: cat.color }}>
-          <span class="tdot" style=${{ background: cat.color }}></span>${TYPE_LABEL[vt] || vt}
-        </span>
+      <div class="nhead">
+        <span class="nicon" style=${{ background: cat.bg, color: cat.color }}><${Icon} name=${TYPE_ICON[vt] || "chat"} size=${13} /></span>
+        <div class="nmain">
+          ${editing
+            ? html`<input class="nid-input nodrag" autoFocus value=${draft}
+                     onInput=${(e) => setDraft(e.target.value)}
+                     onBlur=${commit}
+                     onKeyDown=${(e) => {
+                       if (e.key === "Enter") e.target.blur();
+                       else if (e.key === "Escape") { setDraft(id); setEditing(false); }
+                     }}
+                     onClick=${(e) => e.stopPropagation()} />`
+            : html`<div class="nid" title="Double-click to rename" onDoubleClick=${startEdit}>${prettyStep(id)}</div>`}
+          ${line && html`<div class="nline">${line}</div>`}
+          ${qCount > 0 && html`<span class="nqcount">${qCount} question${qCount > 1 ? "s" : ""}</span>`}
+          ${data.orphan && html`<div class="norphan"><${Icon} name="warn" size=${12} /> not connected</div>`}
+        </div>
         ${data.isInitial && html`<span class="ninit" title="Start of the call"><${Icon} name="flag" size=${13} /></span>`}
       </div>
-      ${editing
-        ? html`<input class="nid-input nodrag" autoFocus value=${draft}
-                 onInput=${(e) => setDraft(e.target.value)}
-                 onBlur=${commit}
-                 onKeyDown=${(e) => {
-                   if (e.key === "Enter") e.target.blur();
-                   else if (e.key === "Escape") { setDraft(id); setEditing(false); }
-                 }}
-                 onClick=${(e) => e.stopPropagation()} />`
-        : html`<div class="nid" title="Double-click to rename" onDoubleClick=${startEdit}>${id}</div>`}
-      ${data.orphan && html`<div class="norphan"><${Icon} name="warn" size=${12} /> not connected</div>`}
-      ${snippet && html`<div class=${"nprev" + (oneLine ? " one" : "")}>${snippet}</div>`}
-      ${qShow.map((q, i) => html`
-        <div class="nq" key=${i}>
-          <span class="qdot" style=${{ background: cat.color }}></span><span class="qtxt">${q}</span>
-        </div>`)}
-      ${questions.length > 3 && html`<div class="nq more">+${questions.length - 3} more question${questions.length - 3 > 1 ? "s" : ""}</div>`}
-      <${Chips} label="saves" items=${fieldKeys} mono=${true} />
-      <${Chips} label="runs" items=${actions} />
-      <${Handle} type="source" position=${Position.Bottom} />
+      ${ports && ports.length
+        ? html`<div class="nports">
+            ${ports.map((p) => html`
+              <div class="nport" key=${p.id}>
+                <span class="nport-lbl" title=${p.label}>${p.label}</span>
+                <${Handle} type="source" position=${Position.Bottom} id=${p.id} isConnectable=${false} />
+              </div>`)}
+          </div>`
+        : html`<${Handle} type="source" position=${Position.Bottom} />`}
     </div>`;
 }
 const nodeTypes = { flowNode: FlowNode };
 
-/* ---- custom edge: draws the route + an "Insert step here" affordance ------
-   Detail-on-demand: dashed "possible jump" (branch) edges rest at low opacity
-   with NO label, so the resting view reads as the clean main path. Hovering
-   the edge, or selecting either endpoint node, brings a jump edge to full
-   opacity and shows its label. Solid main-path/fallback edges are unaffected. */
+/* ---- custom edge: one quiet arrow + insert / drop affordances ---------------
+   Every connection looks identical at rest. Hovering a seam that can take an
+   insert reveals the "+" pill; while a palette/component item is being dragged,
+   those seams show a drop pill instead and light up under the drag. Seams
+   without `via` show nothing — the lines look uniform, the safety rules still
+   apply. */
 function FlowEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, style, markerEnd, data }) {
   const [edgePath, labelX, labelY] = getSmoothStepPath({
     sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition,
   });
   const d = data || {};
   const [hover, setHover] = useState(false);
-  const isJump = d.kind === "branch";
-  const active = hover || !!d.emph;      // emph = an endpoint node is selected
-  const dimmed = isJump && !active;
-  const showLabel = !!d.label && (!isJump || active);
+  const [over, setOver] = useState(false); // a dragged item is over this seam
+  const canInsert = !!d.via;
+  const dropTarget = !!d.dropActive && canInsert;
+  const stroke = over ? { stroke: "var(--brand)", strokeWidth: 2.4 }
+    : d.emph ? { stroke: "#5E78EE", strokeWidth: 2 }
+    : hover && canInsert ? { stroke: "#7c86a3", strokeWidth: 2 } : {};
+  const dragProps = dropTarget ? {
+    onDragOver: (e) => { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; setOver(true); },
+    onDragLeave: () => setOver(false),
+    onDrop: (e) => {
+      e.preventDefault(); e.stopPropagation(); setOver(false);
+      if (d.onDropInsert) d.onDropInsert(d.edgeInfo);
+    },
+  } : {};
   return html`
     <${BaseEdge} id=${id} path=${edgePath} markerEnd=${markerEnd}
-      style=${{ ...style, opacity: dimmed ? 0.25 : 1, transition: "opacity .15s" }} />
-    ${isJump && html`
-      <path d=${edgePath} fill="none" stroke="transparent" strokeWidth=${16}
-        style=${{ pointerEvents: "stroke" }}
-        onMouseEnter=${() => setHover(true)} onMouseLeave=${() => setHover(false)} />`}
-    ${(showLabel || d.insertable) && html`
+      style=${{ ...style, ...stroke, transition: "stroke .12s, stroke-width .12s" }} />
+    <path d=${edgePath} fill="none" stroke="transparent" strokeWidth=${18}
+      style=${{ pointerEvents: "stroke" }}
+      onMouseEnter=${() => setHover(true)} onMouseLeave=${() => setHover(false)} ...${dragProps} />
+    ${(dropTarget || (canInsert && hover)) && html`
       <${EdgeLabelRenderer}>
-        <div class="edge-lyr" style=${{ transform: `translate(-50%,-50%) translate(${labelX}px,${labelY}px)` }}
-          onMouseEnter=${() => setHover(true)} onMouseLeave=${() => setHover(false)}>
-          ${showLabel && html`<span class=${"edge-tag" + (isJump && active ? " emph" : "")}>${d.label}</span>`}
-          ${d.insertable && html`
-            <button class="edge-insert" title="Insert a step here"
-              onClick=${(e) => { e.stopPropagation(); d.onInsert && d.onInsert(d.edgeInfo); }}>
-              <span class="ei-plus">+</span><span class="ei-txt">Insert step</span>
-            </button>`}
+        <div class=${"edge-lyr" + (dropTarget ? " drop" : "")}
+          style=${{ transform: `translate(-50%,-50%) translate(${labelX}px,${labelY}px)` }}
+          onMouseEnter=${() => setHover(true)} onMouseLeave=${() => setHover(false)} ...${dragProps}>
+          ${dropTarget
+            ? html`<div class=${"dropzone" + (over ? " over" : "")}>${over ? "drops in — wires itself" : "drop here"}</div>`
+            : html`<button class="edge-insert" title="Add a step here"
+                onClick=${(e) => { e.stopPropagation(); d.onInsert && d.onInsert(d.edgeInfo); }}>
+                <span class="ei-plus">+</span><span class="ei-txt">Add a step</span>
+              </button>`}
         </div>
       <//>`}`;
 }
@@ -937,11 +985,6 @@ function outlineOrder(flow) {
   if (start) visit(start);
   const orphans = Object.keys(flow.nodes || {}).filter((i) => !seen.has(i));
   return { order, orphans };
-}
-
-function prettyStep(id) {
-  const s = humanize(id);
-  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 // One readable line per step: what it says (first sentence, quoted) or what it
@@ -1077,6 +1120,18 @@ function newNodeSkeleton(vtype) {
   }
 }
 
+// A saved component instantiates as a normal custom-question step — the exact
+// same shape the palette's "Ask questions" produces, with the saved questions
+// already filled in. Deep-copied so edits never touch the library copy.
+function componentSkeleton(payload) {
+  return {
+    type: "collect",
+    fields: JSON.parse(JSON.stringify(payload.fields || [])),
+    next: "",
+    functions: [],
+  };
+}
+
 // The stem we use as a default id when a node is dropped from the palette.
 function baseIdFor(vtype) {
   return vtype === "collect-custom" ? "collect" : vtype;
@@ -1102,6 +1157,30 @@ function normalizeFieldKey(raw) {
   return m ? m[1] : s;
 }
 
+// Suggest a storage key from a question: "Which pharmacy do you use?" → "pharmacy".
+const SLUG_STOP = new Set([
+  "which", "what", "whats", "who", "when", "where", "how", "do", "does", "did",
+  "you", "your", "the", "a", "an", "is", "are", "was", "of", "to", "for", "use",
+  "please", "me", "tell", "have", "has", "any", "their", "there", "they", "we", "i",
+]);
+function suggestFieldKey(question) {
+  const words = String(question || "").toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ").trim().split(/\s+/)
+    .filter((w) => w.length > 1 && !SLUG_STOP.has(w)); // >1 drops the stray "s" of "what's"
+  return words.slice(0, 3).join("_");
+}
+
+// "Insurance details" → "insurance_details" (safe for file names AND step ids).
+function slugify(s) {
+  return String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+}
+
+// Only these payloads can be wired into a seam with the existing insert
+// primitive (both produce a step that carries its own `next`).
+function payloadInsertable(p) {
+  return !!p && (p.kind === "component" || p.vtype === "collect-custom");
+}
+
 /* ========================================================================== */
 function App() {
   // The parsed flow config is the single source of truth. We mutate it in place
@@ -1119,6 +1198,7 @@ function App() {
   const [view, setView] = useState("map"); // "map" (default) | "outline" (read-only)
 
   const [flowList, setFlowList] = useState([]);
+  const [components, setComponents] = useState([]);
   const [loadedName, setLoadedName] = useState("");   // file stem currently loaded/saved
   const [dirty, setDirty] = useState(false);          // unsaved changes since last load/save
   const [viewKey, setViewKey] = useState(0);          // bump to remount React Flow → fresh fitView
@@ -1126,8 +1206,17 @@ function App() {
 
   // modal state: only one open at a time
   const [showOpen, setShowOpen] = useState(false);
-  const [showSave, setShowSave] = useState(false);
-  const [confirmBox, setConfirmBox] = useState(null); // {title, message, confirmLabel, onConfirm}
+  const [savePrompt, setSavePrompt] = useState(null); // {initial, copy} | null
+  const [showNewComponent, setShowNewComponent] = useState(false);
+  const [confirmBox, setConfirmBox] = useState(null); // {title, message, confirmLabel, tone?, onConfirm}
+
+  // drag-from-palette: the payload rides in a ref (dataTransfer is unreadable
+  // during dragover); dragInsert re-renders edges so insertable seams show
+  // their drop pills while the drag is live.
+  const dragPayloadRef = useRef(null);
+  const [dragInsert, setDragInsert] = useState(false);
+  const rfInst = useRef(null);
+  const canvasRef = useRef(null);
 
   const toastTimer = useRef(null);
   const showToast = useCallback((msg, err) => {
@@ -1199,18 +1288,17 @@ function App() {
     showToast("Redid the change");
   }, [restoreSnapshot, showToast]);
 
-  /* ---- insert a NEW step INTO a linear route (A→B becomes A→new→B) --------
-     Only called for insertable (solid) edges. Creates a custom-collect step —
-     the type that linearly continues a call via its own `next` — and rewires:
-       upstream → new   (edit the edge's own routing value)
-       new → downstream (the inserted step's `next`)
-     so the flow actually reaches the new step on a call. */
-  const insertStep = useCallback((edgeInfo) => {
+  /* ---- insert a step INTO a seam (A→B becomes A→new→B) ---------------------
+     The one proven insert primitive, unchanged: create a custom-question step
+     (blank from the palette, or a component's saved questions), point its
+     `next` at the old target, and repoint the seam's own routing value —
+     node.next, bucket.next, or a plain-string function behavior.goto. One
+     history snapshot covers it all → one ⌘Z reverses a drag-insert. */
+  const CANT_INSERT_MSG =
+    "A step can't be added on this connection — try a line further along the call, or drop it on empty space to keep it nearby.";
+  const performInsert = useCallback((edgeInfo, payload) => {
     const flow = flowRef.current;
-    if (!flow || !edgeInfo || !edgeInfo.via) {
-      showToast("Inserting on a dashed connection is coming soon — for now, add steps along the solid main path.", true);
-      return;
-    }
+    if (!flow || !edgeInfo || !edgeInfo.via) { showToast(CANT_INSERT_MSG, true); return; }
     const { source, target, via } = edgeInfo;
     if (via.type === "goto") {
       // Guard FIRST (before any mutation or history snapshot): only plain
@@ -1218,13 +1306,19 @@ function App() {
       // else means stale edge data — bail without mutating.
       const def = flow.functions[via.fn];
       if (!def || !def.behavior || typeof def.behavior.goto !== "string") {
-        showToast("Inserting on a dashed connection is coming soon — for now, add steps along the solid main path.", true);
+        showToast(CANT_INSERT_MSG, true);
         return;
       }
     }
     pushHistory();
-    const id = uniqueId(flow, "collect");
-    const nn = newNodeSkeleton("collect-custom");
+    let id, nn;
+    if (payload && payload.kind === "component") {
+      id = uniqueId(flow, slugify(payload.name) || "component");
+      nn = componentSkeleton(payload);
+    } else {
+      id = uniqueId(flow, "collect");
+      nn = newNodeSkeleton("collect-custom");
+    }
     nn.next = target || "";                 // new → original downstream
     flow.nodes[id] = nn;
     if (via.type === "next") flow.nodes[source].next = id;
@@ -1245,8 +1339,27 @@ function App() {
     setDirty(true);
     setViewKey((k) => k + 1);
     bump();
-    showToast(`Inserted a new step between "${source}" and "${target}" — edit it in the panel`);
+    showToast(`Added "${prettyStep(id)}" between "${prettyStep(source)}" and "${prettyStep(target)}" — edit it in the panel`);
   }, [bump, showToast, pushHistory]);
+
+  // Shared entry for BOTH the "+" pill and a palette drop: mechanically-safe
+  // seams insert silently; ambiguous positions get a one-line confirm first.
+  const requestInsert = useCallback((edgeInfo, payload) => {
+    const flow = flowRef.current;
+    if (!flow || !edgeInfo || !edgeInfo.via) { showToast(CANT_INSERT_MSG, true); return; }
+    const concern = insertConcern(flow, edgeInfo);
+    if (concern) {
+      setConfirmBox({
+        title: "Add the step here?",
+        message: concern,
+        confirmLabel: "Add step",
+        tone: "primary",
+        onConfirm: () => { setConfirmBox(null); performInsert(edgeInfo, payload); },
+      });
+    } else {
+      performInsert(edgeInfo, payload);
+    }
+  }, [performInsert, showToast]);
 
   /* ---- rename (shared by the panel field AND double-click-on-card) --------
      Validates, then delegates to renameNodeInFlow — the ONE place that
@@ -1294,12 +1407,12 @@ function App() {
       && flow.nodes[node.next] ? node.next : null;
     const canBridge = inbound.length === 1 && !inbound[0].complex && !!nextId;
     const message = canBridge
-      ? `This removes the step and reconnects the flow around it — the step before it will go straight to “${nextId}”. You can undo this with ⌘Z.`
+      ? `This removes the step and reconnects the flow around it — the step before it will go straight to “${prettyStep(nextId)}”. You can undo this with ⌘Z.`
       : (inbound.length > 0
           ? `This removes the step from the flow and the saved file. ${inbound.length} connection${inbound.length > 1 ? "s" : ""} pointing here will be left unconnected — reconnect the affected steps afterwards. You can undo this with ⌘Z.`
           : "This removes the step from the flow — it will be gone from the saved file too. You can undo this with ⌘Z.");
     setConfirmBox({
-      title: `Delete “${nodeId}”?`,
+      title: `Delete “${prettyStep(nodeId)}”?`,
       message,
       confirmLabel: "Delete step",
       onConfirm: () => {
@@ -1313,8 +1426,8 @@ function App() {
         setDirty(true);
         bump();
         showToast(canBridge
-          ? `Deleted "${nodeId}" — reconnected the flow to "${nextId}"`
-          : `Deleted "${nodeId}"`);
+          ? `Deleted "${prettyStep(nodeId)}" — reconnected the flow to "${prettyStep(nextId)}"`
+          : `Deleted "${prettyStep(nodeId)}"`);
       },
     });
   }, [pushHistory, bump, showToast]);
@@ -1323,15 +1436,21 @@ function App() {
   const rebuild = useCallback((relayout) => {
     const flow = flowRef.current;
     if (!flow) { setRfNodes([]); setRfEdges([]); return; }
-    // attach the live insert handler + rewire descriptor to each edge
+    // attach the live insert/drop handlers + rewire descriptor to each edge
     const edges = computeEdges(flow).map((e) => ({
       ...e,
       data: {
         ...e.data,
-        onInsert: insertStep,
+        onInsert: (info) => requestInsert(info, null),
+        onDropInsert: (info) => {
+          const payload = dragPayloadRef.current;
+          dragPayloadRef.current = null;
+          setDragInsert(false);
+          requestInsert(info, payload);
+        },
         edgeInfo: { source: e.data.source, target: e.data.target, via: e.data.via },
-        // selecting a node surfaces its dashed "possible jump" edges + labels
         emph: !!selected && (e.source === selected || e.target === selected),
+        dropActive: dragInsert,
       },
     }));
     // a step nothing routes to (and isn't the start) is a disconnected orphan
@@ -1350,11 +1469,12 @@ function App() {
         selected: selected === id,
         orphan: flow.initial_node !== id && !incoming.has(id),
         onRename: renameNode,
+        ports: decisionPorts(flow, id),
       },
     }));
     setRfNodes(nodes);
     setRfEdges(edges);
-  }, [selected, insertStep, renameNode]);
+  }, [selected, requestInsert, renameNode, dragInsert]);
 
   useEffect(() => { rebuild(false); }, [rev, selected, rebuild]);
 
@@ -1364,7 +1484,7 @@ function App() {
      the panel button — React Flow's visual-only delete key is disabled. */
   const uiRef = useRef({});
   useEffect(() => {
-    uiRef.current = { selected, modal: showOpen || showSave || !!confirmBox };
+    uiRef.current = { selected, modal: showOpen || !!savePrompt || showNewComponent || !!confirmBox };
   });
   useEffect(() => {
     const onKey = (e) => {
@@ -1389,9 +1509,13 @@ function App() {
     return fetch("/api/flows").then((r) => r.json()).then((d) => setFlowList(d.flows || []))
       .catch(() => showToast("Could not list flows", true));
   }, [showToast]);
+  const refreshComponents = useCallback(() => {
+    return fetch("/api/components").then((r) => r.json()).then((d) => setComponents(d.components || []))
+      .catch(() => {}); // the rail just shows its empty state
+  }, []);
 
-  /* ---- load flow list on mount ---- */
-  useEffect(() => { refreshList(); }, [refreshList]);
+  /* ---- load flow + component lists on mount ---- */
+  useEffect(() => { refreshList(); refreshComponents(); }, [refreshList, refreshComponents]);
 
   /* ---- load a flow ---- */
   const loadFlow = useCallback(async (name) => {
@@ -1412,10 +1536,31 @@ function App() {
       rebuild(true);
       bump();
       showToast(`Opened ${name}.json`);
+      return true;
     } catch (e) {
       showToast(`Load failed: ${e.message}`, true);
+      return false;
     }
   }, [rebuild, bump, showToast, clearHistory]);
+
+  /* ---- start from a template (any saved flow) -------------------------------
+     Opens the flow with the existing loader, then immediately offers Save-as so
+     the user edits their own copy — the template file stays untouched unless
+     they explicitly overwrite it. */
+  const useTemplate = useCallback((f) => {
+    if (f.name === loadedName) { showToast("This flow is already open."); return; }
+    const start = async () => {
+      if (await loadFlow(f.name)) setSavePrompt({ initial: `${f.name}_copy`, copy: true });
+    };
+    if (dirty) {
+      setConfirmBox({
+        title: "Start from this template?",
+        message: "You have unsaved changes — opening the template will discard them.",
+        confirmLabel: "Discard & continue",
+        onConfirm: () => { setConfirmBox(null); start(); },
+      });
+    } else start();
+  }, [loadedName, dirty, loadFlow, showToast]);
 
   /* ---- create blank ---- */
   const createNew = useCallback(() => {
@@ -1465,7 +1610,7 @@ function App() {
       if (!res.ok) throw new Error(d.error || res.statusText);
       setLoadedName(name);
       setDirty(false);
-      setShowSave(false);
+      setSavePrompt(null);
       showToast(`Saved to flows/${d.file}`);
       refreshList();
       return true;
@@ -1478,7 +1623,7 @@ function App() {
   // Primary Save: overwrite the loaded file if there is one, else prompt for a name.
   const onSave = useCallback(() => {
     if (loadedName) doSave(loadedName);
-    else setShowSave(true);
+    else setSavePrompt({ initial: "", copy: false });
   }, [loadedName, doSave]);
 
   /* ---- export (download) without saving ---- */
@@ -1492,22 +1637,105 @@ function App() {
     URL.revokeObjectURL(url);
   }, [loadedName]);
 
-  /* ---- add node from palette (no popup: default id, edit in panel) ---- */
-  const addNode = useCallback((vtype) => {
+  /* ---- save a reusable component to the library ---- */
+  const saveComponent = useCallback(async ({ name, questions }) => {
+    const title = String(name || "").trim();
+    const qs = String(questions || "").split("\n").map((s) => s.trim()).filter(Boolean);
+    if (!title) { showToast("Give the component a name", true); return false; }
+    if (!qs.length) { showToast("Add at least one thing to say or ask", true); return false; }
+    // Derive a storage key per question (same suggestion logic the panel uses),
+    // deduped so two similar questions never collide.
+    const seen = new Set();
+    const fields = qs.map((q, i) => {
+      const base = suggestFieldKey(q) || `answer_${i + 1}`;
+      let key = base, n = 2;
+      while (seen.has(key)) key = `${base}_${n++}`;
+      seen.add(key);
+      return { question: q, field: key, required: false };
+    });
+    const slug = slugify(title) || "component";
+    try {
+      const res = await fetch(`/api/components/${encodeURIComponent(slug)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: title, fields }, null, 2),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || res.statusText);
+      showToast(`Saved "${title}" to your components`);
+      refreshComponents();
+      return true;
+    } catch (e) {
+      showToast(`Could not save the component: ${e.message}`, true);
+      return false;
+    }
+  }, [showToast, refreshComponents]);
+
+  /* ---- add a loose (unconnected) step: palette click, component click, or a
+     drop on empty canvas. Loose cards are clearly marked "not connected". ---- */
+  const addLoose = useCallback((payload, pos) => {
     const flow = flowRef.current;
     if (!flow) { showToast("Create or open a flow first", true); return; }
     pushHistory();
-    const id = uniqueId(flow, baseIdFor(vtype));
-    flow.nodes[id] = newNodeSkeleton(vtype);
-    // place below existing nodes so it never lands on top of another card
-    const ys = Object.values(posRef.current).map((p) => p.y);
-    const maxY = ys.length ? Math.max(...ys) : PAD;
-    posRef.current[id] = { x: PAD, y: maxY + V_GAP };
+    let id, nn;
+    if (payload.kind === "component") {
+      id = uniqueId(flow, slugify(payload.name) || "component");
+      nn = componentSkeleton(payload);
+    } else {
+      id = uniqueId(flow, baseIdFor(payload.vtype));
+      nn = newNodeSkeleton(payload.vtype);
+    }
+    flow.nodes[id] = nn;
+    if (pos) {
+      posRef.current[id] = pos;
+    } else {
+      // place below existing nodes so it never lands on top of another card
+      const ys = Object.values(posRef.current).map((p) => p.y);
+      const maxY = ys.length ? Math.max(...ys) : PAD;
+      posRef.current[id] = { x: PAD, y: maxY + V_GAP };
+    }
     setSelected(id);
+    setShowFlowSettings(false);
     setDirty(true);
     bump();
-    showToast(`Added loose step "${id}" — connect it with "+ Insert step" on a solid line, or set where it goes in the panel`, true);
+    showToast(`Added "${prettyStep(id)}" — it isn't connected yet, so a call won't reach it.`, true);
   }, [bump, showToast, pushHistory]);
+  const addNode = useCallback((vtype) => addLoose({ kind: "type", vtype }, null), [addLoose]);
+
+  /* ---- drag from the left rail ---- */
+  const beginDrag = useCallback((payload) => (e) => {
+    dragPayloadRef.current = payload;
+    e.dataTransfer.effectAllowed = "copy";
+    try { e.dataTransfer.setData("text/plain", payload.kind === "component" ? payload.title : payload.vtype); } catch (_) { /* older engines */ }
+    if (payloadInsertable(payload)) setDragInsert(true);
+  }, []);
+  const endDrag = useCallback(() => {
+    dragPayloadRef.current = null;
+    setDragInsert(false);
+  }, []);
+  // A drop that no seam claimed parks the card wherever it landed.
+  const onCanvasDragOver = useCallback((e) => {
+    if (dragPayloadRef.current) { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; }
+  }, []);
+  const onCanvasDrop = useCallback((e) => {
+    const payload = dragPayloadRef.current;
+    if (!payload || !flowRef.current) return;
+    e.preventDefault();
+    dragPayloadRef.current = null;
+    setDragInsert(false);
+    const inst = rfInst.current;
+    let pos = null;
+    if (inst) {
+      if (inst.screenToFlowPosition) {
+        pos = inst.screenToFlowPosition({ x: e.clientX, y: e.clientY });
+      } else if (inst.project && canvasRef.current) {
+        const b = canvasRef.current.getBoundingClientRect();
+        pos = inst.project({ x: e.clientX - b.left, y: e.clientY - b.top });
+      }
+      if (pos) pos = { x: pos.x - 106, y: pos.y - 20 }; // center the card under the cursor
+    }
+    addLoose(payload, pos);
+  }, [addLoose]);
 
   /* ---- React Flow interactions ---- */
   const onNodesChange = useCallback((changes) => {
@@ -1524,11 +1752,10 @@ function App() {
   const onNodeClick = useCallback((_e, n) => { setShowFlowSettings(false); setSelected(n.id); }, []);
   const onPaneClick = useCallback(() => setSelected(null), []);
 
-  // Clicking a dashed (branching/function) route: be honest that inserting there
-  // isn't supported yet. Insertable edges are handled by their own "+" button.
+  // Clicking a connection that can't take an insert: say so honestly.
   const onEdgeClick = useCallback((_e, edge) => {
-    if (edge.data && edge.data.insertable) return;
-    showToast("Inserting on a dashed connection is coming soon — for now, add steps along the solid main path.", true);
+    if (edge.data && edge.data.via) return; // its own "+" pill handles inserts
+    showToast(CANT_INSERT_MSG, true);
   }, [showToast]);
 
   // Drag-to-connect: set routing where a node HAS a node-level target.
@@ -1539,21 +1766,16 @@ function App() {
     if (visualType(src) === "collect-custom") {
       pushHistory();
       src.next = c.target;
-      showToast(`${c.source} → ${c.target}`);
-      markDirty();
-    } else if (src.type === "categorize") {
-      pushHistory();
-      if (!src.fallback) src.fallback = c.target;
-      else (src.buckets = src.buckets || []).push({ name: "new_bucket", description: "", next: c.target });
-      showToast(`Routing added → ${c.target} (name it in the panel)`);
+      showToast(`${prettyStep(c.source)} → ${prettyStep(c.target)}`);
       markDirty();
     } else {
-      showToast("This step's routing is set by its actions (advanced) — connect it in the panel", true);
+      showToast("Where this step goes next is decided by its settings — open it and use the panel.", true);
     }
   }, [markDirty, showToast, pushHistory]);
 
   const flow = flowRef.current;
   const nodeIdList = flow ? Object.keys(flow.nodes || {}) : [];
+  const typeLabel = Object.fromEntries(NODE_TYPES.map((t) => [t.key, t.label]));
 
   return html`
     <div class="app">
@@ -1595,44 +1817,75 @@ function App() {
         <div class="divider"></div>
         <button onClick=${() => { setSelected(null); setShowFlowSettings((s) => !s); }} disabled=${!flow}><${Icon} name="settings" /> Flow settings</button>
         <button onClick=${exportJson} disabled=${!flow}>Export</button>
-        <button onClick=${() => setShowSave(true)} disabled=${!flow}>Save as…</button>
+        <button onClick=${() => setSavePrompt({ initial: loadedName, copy: false })} disabled=${!flow}>Save as…</button>
         <button class="primary" onClick=${onSave} disabled=${!flow}>Save</button>
         <a class="navlink" href="/phone" target="_blank">/phone ↗</a>
       </div>
 
       <div class="body">
-        <!-- palette -->
+        <!-- left rail: step types · my components · templates -->
         <div class="palette">
           <div class="tip">
-            <${Icon} name="plus" size=${15} />
-            <div>To weave a step into the call, hover a <strong>solid line</strong> and click <strong>+ Insert step</strong>.</div>
+            <${Icon} name="cursor" size=${15} />
+            <div>Drag a step onto a <strong>line</strong> between two cards — it wires itself in. Drop it on empty space to keep it aside for later.</div>
           </div>
-          <div class="side-h adv-h">Add a loose step</div>
-          <div class="adv-sub">Advanced — starts unconnected; you'll connect it yourself.</div>
-          ${["conversation", "decision", "integration", "terminal"].map((cat) => html`
-            <div class="pal-group" key=${cat}>
-              <div class="pg-h" style=${{ color: CAT_META[cat].color }}>
-                <span class="pg-dot" style=${{ background: CAT_META[cat].color }}></span>${CAT_META[cat].label}
-              </div>
-              ${NODE_TYPES.filter((t) => CATEGORY[t.key] === cat).map((t) => html`
-                <button key=${t.key} class="addbtn" onClick=${() => addNode(t.key)} title=${"Add a loose “" + t.label + "” step"}>
-                  <span class="swatch" style=${{ background: CAT_META[cat].color }}></span>${t.label}
-                </button>`)}
+          ${RAIL.map((sec) => html`
+            <div class="rail-sec" key=${sec.title}>
+              <div class="sec-h">${sec.title}</div>
+              ${sec.keys.map((key) => {
+                const cat = CAT_META[CATEGORY[key]];
+                return html`
+                  <button key=${key} class="pal-item" draggable="true"
+                    onDragStart=${beginDrag({ kind: "type", vtype: key })} onDragEnd=${endDrag}
+                    onClick=${() => addNode(key)}
+                    title=${"Drag onto the map — or click to add it unconnected"}>
+                    <span class="swatch" style=${{ background: cat.color }}></span>
+                    <span class="pi-body"><span class="pi-name">${typeLabel[key]}</span></span>
+                  </button>`;
+              })}
             </div>`)}
-          <div class="legend">
-            <div class="side-h">How to read the map</div>
-            <div class="legend-row"><span class="legend-line primary"></span> Main path — insertable</div>
-            <div class="legend-row"><span class="legend-line gray"></span> If nothing matches</div>
-            <div class="legend-row"><span class="legend-line dashed"></span> Possible jump</div>
-            <div class="legend-row" style=${{ marginTop: "10px" }}><span class="legend-sw" style=${{ background: "var(--cat-conv)" }}></span> Conversation</div>
-            <div class="legend-row"><span class="legend-sw" style=${{ background: "var(--cat-dec)" }}></span> Decision</div>
-            <div class="legend-row"><span class="legend-sw" style=${{ background: "var(--cat-int)" }}></span> Action</div>
-            <div class="legend-row"><span class="legend-sw" style=${{ background: "var(--cat-term)" }}></span> Call ends</div>
+
+          <div class="rail-sec">
+            <div class="sec-h">My components</div>
+            ${components.length === 0 && html`
+              <div class="rail-empty">Reusable pieces you can drop into any flow — save a set of questions once, use it everywhere.</div>`}
+            ${components.map((c) => html`
+              <button key=${c.name} class="pal-item" draggable="true"
+                onDragStart=${beginDrag({ kind: "component", name: c.name, title: c.title, fields: c.fields })}
+                onDragEnd=${endDrag}
+                onClick=${() => addLoose({ kind: "component", name: c.name, title: c.title, fields: c.fields }, null)}
+                title=${"Drag onto the map — or click to add it unconnected"}>
+                <span class="swatch" style=${{ background: "var(--cat-conv)" }}></span>
+                <span class="pi-body">
+                  <span class="pi-name">${c.title}</span>
+                  <span class="pi-sub">${(c.fields || []).length} question${(c.fields || []).length === 1 ? "" : "s"}</span>
+                </span>
+              </button>`)}
+            <button class="pal-item" onClick=${() => setShowNewComponent(true)} style=${{ cursor: "pointer" }}>
+              <${Icon} name="plus" size=${14} />
+              <span class="pi-body"><span class="pi-name">New component</span></span>
+            </button>
+          </div>
+
+          <div class="rail-sec">
+            <div class="sec-h">Templates</div>
+            ${flowList.length === 0 && html`<div class="rail-empty">Saved flows show up here as starting points.</div>`}
+            ${flowList.map((f) => html`
+              <button key=${f.name} class="pal-item" onClick=${() => useTemplate(f)}
+                style=${{ cursor: "pointer" }}
+                title=${f.name === loadedName ? "This is the flow you're editing" : "Start from a copy of this flow"}>
+                <${Icon} name="file" size=${14} />
+                <span class="pi-body">
+                  <span class="pi-name">${f.title || f.name}</span>
+                  <span class="pi-sub">${f.file}</span>
+                </span>
+                ${f.name === loadedName && html`<span class="inuse">In use</span>`}
+              </button>`)}
           </div>
         </div>
 
         <!-- canvas -->
-        <div class="canvas">
+        <div class="canvas" ref=${canvasRef} onDragOver=${onCanvasDragOver} onDrop=${onCanvasDrop}>
           ${flow && view === "outline"
             ? html`<${Outline} flow=${flow} selected=${selected}
                       onPick=${(id) => { setShowFlowSettings(false); setSelected(id); }} />`
@@ -1641,6 +1894,7 @@ function App() {
                 key=${viewKey}
                 nodes=${rfNodes} edges=${rfEdges}
                 nodeTypes=${nodeTypes} edgeTypes=${edgeTypes}
+                onInit=${(inst) => { rfInst.current = inst; }}
                 onNodesChange=${onNodesChange} onEdgesChange=${onEdgesChange}
                 onConnect=${onConnect}
                 onNodeClick=${onNodeClick} onPaneClick=${onPaneClick} onEdgeClick=${onEdgeClick}
@@ -1651,8 +1905,8 @@ function App() {
                 <${Controls} showInteractive=${false} />
                 <${MiniMap} nodeColor=${(n) => colorFor(n.data.node)} nodeStrokeWidth=${2} pannable zoomable />
               <//>`
-            : html`<div class="empty" style=${{ marginTop: "18vh" }}>
-                <span class="big"><${Icon} name="flow" size=${36} /></span>
+            : html`<div class="empty" style=${{ marginTop: "18vh", color: "var(--muted)", fontSize: "13.5px", textAlign: "center", padding: "0 20px", lineHeight: 1.6 }}>
+                <span class="big" style=${{ display: "block", marginBottom: "12px" }}><${Icon} name="flow" size=${36} /></span>
                 Open an existing clinic flow, or create a new one to start building.
                 <div style=${{ marginTop: "18px" }}>
                   <button class="primary" onClick=${() => { refreshList(); setShowOpen(true); }}><${Icon} name="open" /> Open a flow</button>
@@ -1671,14 +1925,18 @@ function App() {
                           showToast=${showToast} />`
                 : html`<div class="empty">
                     <span class="big"><${Icon} name="cursor" size=${34} /></span>
-                    ${flow ? "Click a step on the map to edit it, or hover a solid line and click + Insert step." : "No flow open yet."}
+                    ${flow ? "Click a card to edit what it says, or drag a step in from the left." : "No flow open yet."}
                   </div>`)}
         </div>
       </div>
 
       ${showOpen && html`<${OpenModal} flows=${flowList} onPick=${loadFlow} onClose=${() => setShowOpen(false)} />`}
-      ${showSave && html`<${SaveModal} initial=${loadedName} flowName=${flow && flow.name}
-                            onSave=${doSave} onClose=${() => setShowSave(false)} />`}
+      ${savePrompt && html`<${SaveModal} initial=${savePrompt.initial} copy=${savePrompt.copy}
+                            flowName=${flow && flow.name}
+                            onSave=${doSave} onClose=${() => setSavePrompt(null)} />`}
+      ${showNewComponent && html`<${ComponentModal}
+                            onSave=${async (v) => { if (await saveComponent(v)) setShowNewComponent(false); }}
+                            onClose=${() => setShowNewComponent(false)} />`}
       ${confirmBox && html`<${ConfirmModal} ...${confirmBox} onCancel=${() => setConfirmBox(null)} />`}
 
       ${toast && html`<div class=${"toast" + (toast.err ? " err" : "")}>
@@ -1715,8 +1973,8 @@ function OpenModal({ flows, onPick, onClose }) {
     </div>`;
 }
 
-/* ---- Save-as modal -------------------------------------------------------- */
-function SaveModal({ initial, flowName, onSave, onClose }) {
+/* ---- Save-as modal (also the "save your own copy" prompt for templates) ---- */
+function SaveModal({ initial, copy, flowName, onSave, onClose }) {
   const [name, setName] = useState(initial || "");
   const valid = /^[A-Za-z0-9_-]+$/.test(name.trim());
   const submit = () => { if (valid) onSave(name); };
@@ -1725,8 +1983,10 @@ function SaveModal({ initial, flowName, onSave, onClose }) {
       <div class="modal sm" onClick=${(e) => e.stopPropagation()}>
         <div class="modal-head">
           <div>
-            <h3>Save flow</h3>
-            <div class="sub">Saves ${flowName ? html`“${flowName}”` : "this flow"} into the clinic's flows folder.</div>
+            <h3>${copy ? "Save as your own copy" : "Save flow"}</h3>
+            <div class="sub">${copy
+              ? "The template stays untouched — you'll edit this copy."
+              : html`Saves ${flowName ? html`“${flowName}”` : "this flow"} into the clinic's flows folder.`}</div>
           </div>
           <button class="modal-x" onClick=${onClose}>✕</button>
         </div>
@@ -1747,14 +2007,62 @@ function SaveModal({ initial, flowName, onSave, onClose }) {
         </div>
         <div class="modal-foot">
           <button onClick=${onClose}>Cancel</button>
-          <button class="primary" onClick=${submit} disabled=${!valid}>Save flow</button>
+          <button class="primary" onClick=${submit} disabled=${!valid}>${copy ? "Save my copy" : "Save flow"}</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+/* ---- New-component modal ---------------------------------------------------
+   Name + what the assistant should say or ask (one question per line). Saving
+   derives storage keys with the existing suggestion logic and POSTs to the
+   component library. */
+function ComponentModal({ onSave, onClose }) {
+  const [name, setName] = useState("");
+  const [questions, setQuestions] = useState("");
+  const [busy, setBusy] = useState(false);
+  const valid = name.trim().length > 0 && questions.split("\n").some((s) => s.trim());
+  const submit = async () => {
+    if (!valid || busy) return;
+    setBusy(true);
+    await onSave({ name, questions });
+    setBusy(false);
+  };
+  return html`
+    <div class="overlay" onClick=${onClose}>
+      <div class="modal sm" onClick=${(e) => e.stopPropagation()}>
+        <div class="modal-head">
+          <div>
+            <h3>New component</h3>
+            <div class="sub">A reusable piece you can drag into any flow.</div>
+          </div>
+          <button class="modal-x" onClick=${onClose}>✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="field">
+            <label>Name</label>
+            <input type="text" class="full" autoFocus value=${name}
+                   placeholder="e.g. Insurance details"
+                   onInput=${(e) => setName(e.target.value)} />
+          </div>
+          <div class="field">
+            <label>What should the assistant say or ask?</label>
+            <textarea rows=${5} value=${questions}
+              placeholder=${"One question per line, e.g.\nWhich insurance carrier do you have?\nWhat's your member ID?"}
+              onInput=${(e) => setQuestions(e.target.value)}></textarea>
+            <span class="hint">One question per line — each is asked on the call exactly as written.</span>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button onClick=${onClose}>Cancel</button>
+          <button class="primary" onClick=${submit} disabled=${!valid || busy}>Save to library</button>
         </div>
       </div>
     </div>`;
 }
 
 /* ---- generic confirm modal ------------------------------------------------ */
-function ConfirmModal({ title, message, confirmLabel, onConfirm, onCancel }) {
+function ConfirmModal({ title, message, confirmLabel, tone, onConfirm, onCancel }) {
   return html`
     <div class="overlay" onClick=${onCancel}>
       <div class="modal sm" onClick=${(e) => e.stopPropagation()}>
@@ -1762,7 +2070,7 @@ function ConfirmModal({ title, message, confirmLabel, onConfirm, onCancel }) {
         <div class="modal-body"><p style=${{ margin: "4px 0 12px", color: "var(--ink-soft)", lineHeight: 1.55 }}>${message}</p></div>
         <div class="modal-foot">
           <button onClick=${onCancel}>Cancel</button>
-          <button class="danger" onClick=${onConfirm}>${confirmLabel || "Confirm"}</button>
+          <button class=${tone === "primary" ? "primary" : "danger"} onClick=${onConfirm}>${confirmLabel || "Confirm"}</button>
         </div>
       </div>
     </div>`;
@@ -1783,7 +2091,7 @@ function FlowSettings({ flow, markDirty, pushHistory, onClose }) {
       <label>First step <span class="hint inline">(where every call begins)</span></label>
       <select class="full" value=${flow.initial_node || ""}
               onChange=${(e) => set("initial_node", e.target.value)}>
-        ${Object.keys(flow.nodes || {}).map((id) => html`<option key=${id} value=${id}>${id}</option>`)}
+        ${Object.keys(flow.nodes || {}).map((id) => html`<option key=${id} value=${id}>${prettyStep(id)}</option>`)}
       </select>
     </div>
     <div class="field">
@@ -1805,19 +2113,6 @@ function Advanced({ children }) {
       </button>
       ${open && html`<div class="adv-body">${children}</div>`}
     </div>`;
-}
-
-// Suggest a storage key from a question: "Which pharmacy do you use?" → "pharmacy".
-const SLUG_STOP = new Set([
-  "which", "what", "whats", "who", "when", "where", "how", "do", "does", "did",
-  "you", "your", "the", "a", "an", "is", "are", "was", "of", "to", "for", "use",
-  "please", "me", "tell", "have", "has", "any", "their", "there", "they", "we", "i",
-]);
-function suggestFieldKey(question) {
-  const words = String(question || "").toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ").trim().split(/\s+/)
-    .filter((w) => w && !SLUG_STOP.has(w));
-  return words.slice(0, 3).join("_");
 }
 
 /* ---- per-node properties panel ---------------------------------------------
@@ -1859,12 +2154,12 @@ function Props({ flow, nodeId, nodeIds, markDirty, pushHistory, renameNode, requ
 
   const setInitial = () => {
     edit(() => { flow.initial_node = nodeId; });
-    showToast(`"${nodeId}" is now the first step`);
+    showToast(`"${prettyStep(nodeId)}" is now the first step`);
   };
 
   const hasFns = ["say", "collect", "branch", "tool", "handoff", "end", "collect-custom"].includes(vt);
-  // True when this node's exposed functions actually imply routing (a goto),
-  // so we only surface the "routing is function-defined" note when it applies.
+  // True when this node's exposed functions actually decide where the call
+  // goes next, so we only surface that note when it applies.
   const routesViaFns = (node.functions || []).some((fn) => {
     const def = (flow.functions || {})[fn];
     return def && behaviorTargets(def.behavior).length > 0;
@@ -1880,7 +2175,7 @@ function Props({ flow, nodeId, nodeIds, markDirty, pushHistory, renameNode, requ
       <div class="note warn" style=${{ marginBottom: "14px" }}>
         <${Icon} name="warn" size=${14} />
         <div>This step isn't connected — nothing leads to it, so a call never reaches it.
-          Use <strong>+ Insert step</strong> on a solid line, or point another step here.</div>
+          Drag a step from the left onto a line, or point another step here.</div>
       </div>`}
 
     <div class="field">
@@ -1920,7 +2215,7 @@ function Props({ flow, nodeId, nodeIds, markDirty, pushHistory, renameNode, requ
             <div class="row">
               <select value=${b.next || ""} onChange=${(e) => edit(() => { b.next = e.target.value; })}>
                 <option value="">— choose a step —</option>
-                ${nodeIds.map((id) => html`<option key=${id} value=${id}>${id}</option>`)}
+                ${nodeIds.map((id) => html`<option key=${id} value=${id}>${prettyStep(id)}</option>`)}
               </select>
               <button class="danger tiny" onClick=${() => edit(() => { node.buckets.splice(i, 1); })}>✕</button>
             </div>
@@ -1931,7 +2226,7 @@ function Props({ flow, nodeId, nodeIds, markDirty, pushHistory, renameNode, requ
         <label>If nothing matches <span class="hint inline">(when no option fits)</span></label>
         <select class="full" value=${node.fallback || ""} onChange=${(e) => setField("fallback", e.target.value)}>
           <option value="">— choose a step —</option>
-          ${nodeIds.map((id) => html`<option key=${id} value=${id}>${id}</option>`)}
+          ${nodeIds.map((id) => html`<option key=${id} value=${id}>${prettyStep(id)}</option>`)}
         </select>
       </div>`}
 
@@ -1966,7 +2261,7 @@ function Props({ flow, nodeId, nodeIds, markDirty, pushHistory, renameNode, requ
         <label>Next step <span class="hint inline">(after all answers collected)</span></label>
         <select class="full" value=${node.next || ""} onChange=${(e) => setField("next", e.target.value)}>
           <option value="">— choose a step —</option>
-          ${nodeIds.map((id) => html`<option key=${id} value=${id}>${id}</option>`)}
+          ${nodeIds.map((id) => html`<option key=${id} value=${id}>${prettyStep(id)}</option>`)}
         </select>
       </div>`}
 
@@ -2028,7 +2323,7 @@ function Props({ flow, nodeId, nodeIds, markDirty, pushHistory, renameNode, requ
         </div>
         ${routesViaFns && html`
           <div class="note" style=${{ margin: "4px 0 14px" }}>
-            This step's routing is set by its actions (advanced).
+            Where the call goes after this step is decided by its actions above.
           </div>`}`}
 
       <div class="field">

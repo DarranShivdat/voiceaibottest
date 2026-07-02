@@ -497,6 +497,94 @@ def _register_builder_route() -> None:
     logger.info("Visual flow builder available at /builder")
 
 
+# --- Builder component library (additive; same pattern as the flows API) -----
+# Serves a tiny read/write API over components/*.json — reusable pieces the
+# builder's left rail offers for drag-in. Same name validation and traversal
+# guard as /api/flows. Components are a builder-only concept: each one is just
+# a saved set of questions the builder instantiates as a normal collect node,
+# so the engine and flow format are untouched.
+def _components_dir():
+    from pathlib import Path
+
+    return Path(__file__).parent / "components"
+
+
+def _safe_component_path(name: str):
+    """Resolve `name` to components/<name>.json, rejecting path traversal / bad names."""
+    base = name[:-5] if name.endswith(".json") else name
+    if not _FLOW_NAME_RE.match(base):
+        return None
+    comps = _components_dir().resolve()
+    path = (comps / f"{base}.json").resolve()
+    # Belt-and-suspenders: the resolved path must stay inside components/.
+    if path.parent != comps:
+        return None
+    return path
+
+
+def _register_components_route() -> None:
+    """Additively serve the builder's reusable-component library (components/*.json)."""
+    from fastapi import Request
+    from fastapi.responses import JSONResponse, Response
+
+    from pipecat.runner.run import app
+
+    @app.get("/api/components")
+    async def list_components():  # noqa: ANN202
+        comps = _components_dir()
+        items = []
+        if comps.is_dir():
+            for p in sorted(comps.glob("*.json")):
+                name = p.stem
+                title = name
+                fields = []
+                try:
+                    with open(p, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                    title = data.get("name", name)
+                    fields = data.get("fields", [])
+                except Exception as exc:  # noqa: BLE001 - listing must never 500
+                    logger.warning(f"/api/components: could not read {p.name}: {exc}")
+                items.append({"file": p.name, "name": name, "title": title, "fields": fields})
+        return JSONResponse({"components": items})
+
+    @app.get("/api/components/{name}")
+    async def get_component(name: str):  # noqa: ANN202
+        path = _safe_component_path(name)
+        if path is None:
+            return JSONResponse({"error": "invalid component name"}, status_code=400)
+        if not path.is_file():
+            return JSONResponse({"error": "not found"}, status_code=404)
+        return Response(path.read_text(encoding="utf-8"), media_type="application/json")
+
+    @app.post("/api/components/{name}")
+    async def save_component(name: str, request: Request):  # noqa: ANN202
+        path = _safe_component_path(name)
+        if path is None:
+            return JSONResponse({"error": "invalid component name"}, status_code=400)
+        raw = (await request.body()).decode("utf-8")
+        try:
+            spec = json.loads(raw)
+        except Exception as exc:  # noqa: BLE001
+            return JSONResponse({"error": f"invalid JSON: {exc}"}, status_code=400)
+        if not isinstance(spec.get("name"), str) or not spec["name"].strip():
+            return JSONResponse({"error": "missing required field: name"}, status_code=400)
+        fields = spec.get("fields")
+        if not isinstance(fields, list) or not fields:
+            return JSONResponse({"error": "fields must be a non-empty list"}, status_code=400)
+        for f in fields:
+            if not isinstance(f, dict) or not f.get("question") or not f.get("field"):
+                return JSONResponse(
+                    {"error": "each field needs a question and a field key"}, status_code=400
+                )
+        _components_dir().mkdir(parents=True, exist_ok=True)
+        path.write_text(raw, encoding="utf-8")
+        logger.info(f"Flow builder saved component {path.name} ({len(raw)} bytes)")
+        return JSONResponse({"ok": True, "file": path.name})
+
+    logger.info("Component library available at /api/components")
+
+
 if __name__ == "__main__":
     import asyncio
 
@@ -511,6 +599,7 @@ if __name__ == "__main__":
     _register_phone_route()
     _register_data_route()
     _register_builder_route()
+    _register_components_route()
 
     from pipecat.runner.run import main
 

@@ -29,32 +29,28 @@ names, "Dr.", common drugs, clinic name). Per-clinic config, not a one-off.
 VAD triggers on background noise. Levers: VADParams confidence (toward 0.8),
 stop_secs. Tune against real clinic-call recordings, not a quiet room.
 
-<<<<<<< HEAD
 ## No API abuse protection (BLOCKER before any public hosting)
 Bot runs with "Allowed origins: all (no restriction)", no auth, no rate limiting.
 Fine locally (localhost only). NOT safe the moment it's on a public URL:
 - /start can be spammed → each session burns paid Deepgram/Cartesia/Anthropic
   credits (cost abuse + can DoS the demo by exhausting provider limits).
-- POST /api/flows/{name} (builder save) writes files to disk with no auth →
-  anyone could overwrite flow configs or write arbitrary filenames.
+- POST /api/flows/{name} and /api/components/{name} (builder save) write files
+  to disk with no auth → anyone could overwrite flow configs or components.
+  (Both endpoints already validate names and reject path traversal; what's
+  missing is authentication and rate limiting.)
 Before hosting (ngrok or deploy), add at minimum:
 1. Shared-secret / access token required to start a session and hit /api routes.
 2. Rate limiting on /start and the API routes (N per IP per minute).
-3. Filename validation on the save endpoint (no path traversal, restrict to flows/).
 Do NOT share a public URL until at least the token gate is in place.
-=======
-## Builder can't edit function goto routing (KEY GAP for real configurability)
-The builder edits node text, questions, "next", exposed functions, and initial
-node — but NOT where a function routes (its goto). Most of the flow's real routing
-(greeting->verify->intake etc.) lives in function gotos, so a GTM/clinic user
-currently cannot rewire the flow through the UI — only add leaf nodes and edit
-text. The "This node routes via its functions' goto — edit in the panel" message
-is misleading (the panel has no goto editor). Next builder feature: expose
-function routing (goto targets, conditional routes) as editable in the panel so
-flows can actually be re-wired without editing JSON.
->>>>>>> t3code/9afe63c9
+
+## Builder can't re-point an existing connection (remaining re-wiring gap)
+The builder now inserts steps into any mechanically-safe seam (including linear
+function-goto routes — the seam's goto is repointed by the proven insert
+primitive), bridge-deletes them back out, and drags components in. What it still
+cannot do is RE-POINT an existing connection to a different step (e.g. change
+where "verify existing patient" goes on failure): conditional routes, guards,
+and {cond,then,else} targets are only editable in JSON. Port-drag re-routing
+was explicitly excluded from the Worktree pass — it is the next builder feature.
 
 ## Builder UX niceties (post-demo polish)
-- Rename a step inline by double-clicking its name on the card (currently only
-  editable in the side panel).
 - Drag-select multiple nodes on the canvas (React Flow selectionOnDrag / multi-select).
