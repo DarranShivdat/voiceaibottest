@@ -29,9 +29,13 @@
     /* neutrals (cool slate) */
     --ink:#1c2333; --ink-soft:#3a4256; --muted:#7a8397; --line:#e7e9f2; --line-soft:#f0f2f8;
     --bg:#f5f6fc; --panel:#ffffff;
-    /* node-type accents */
-    --say:#3b82f6; --collect:#8b5cf6; --collectc:#d946ef; --branch:#f59e0b;
-    --categorize:#ec4899; --tool:#14b8a6; --handoff:#ef4444; --end:#10b981;
+    /* step-category accents: what a step DOES, not its technical type.
+       conversation (say/collect) · decision (branch/categorize) ·
+       integration (tool) · terminal (end/handoff) */
+    --cat-conv:#5E78EE;  --cat-conv-bg:#eef1fe;
+    --cat-dec:#e8930c;   --cat-dec-bg:#fdf3e3;
+    --cat-int:#0f9d8f;   --cat-int-bg:#e6f7f3;
+    --cat-term:#d95d6d;  --cat-term-bg:#fdeef0;
     --ok:#10b981; --err:#ef4444;
     --shadow-sm:0 1px 2px rgba(28,35,51,.06);
     --shadow-md:0 4px 16px rgba(28,35,51,.10);
@@ -120,8 +124,10 @@
   .legend { margin-top:22px; }
   .legend-row { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted); margin-bottom:8px; }
   .legend-line { width:26px; height:0; border-top:2px solid #94a3b8; flex-shrink:0; }
-  .legend-line.dashed { border-top-style:dashed; }
-  .legend-line.solid { border-top-color:#64748b; }
+  .legend-line.primary { border-top-color:var(--brand); }
+  .legend-line.gray { border-top-color:#9aa3b8; }
+  .legend-line.dashed { border-top-style:dashed; border-top-color:#a9b1c7; }
+  .legend-sw { width:10px; height:10px; border-radius:4px; flex-shrink:0; }
 
   .canvas { flex:1; min-width:0; position:relative; }
 
@@ -170,23 +176,55 @@
   .note.plain { background:var(--line-soft); border-color:var(--line); }
   .section-sep { height:1px; background:var(--line); margin:20px 0; }
 
-  /* ---- custom React Flow node ---- */
+  /* ---- custom React Flow node ----
+     Prominent cards = the conversation/decision steps a GTM reader cares about;
+     compact cards = utility (tool/terminal) steps. Same layout engine — only
+     the visual weight differs. */
   .rf-node {
     background:#fff; border:1px solid var(--line); border-top-width:3px; border-radius:12px;
-    padding:11px 13px 12px; min-width:168px; max-width:230px; box-shadow:var(--shadow-sm);
+    padding:10px 13px 11px; width:230px; box-shadow:var(--shadow-sm);
     transition:box-shadow .12s, transform .12s;
   }
+  .rf-node.compact { width:180px; padding:8px 11px 9px; }
   .rf-node:hover { box-shadow:var(--shadow-md); }
   .rf-node.sel { box-shadow:0 0 0 3px var(--brand-100), var(--shadow-md); }
-  .rf-node .ntop { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:4px; }
+  .rf-node .ntop { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:5px; }
   .rf-node .ntype {
+    display:inline-flex; align-items:center; gap:5px;
     font-size:9.5px; font-weight:800; text-transform:uppercase; letter-spacing:.06em;
-    padding:2px 7px; border-radius:999px; color:#fff;
+    padding:2px 8px; border-radius:999px;
   }
+  .rf-node .ntype .tdot { width:6px; height:6px; border-radius:50%; }
   .rf-node .ninit { font-size:13px; }
-  .rf-node .nid { font-weight:700; font-size:14px; color:var(--ink); word-break:break-word; letter-spacing:-.01em; }
-  .rf-node .nprev { font-size:11.5px; color:var(--muted); margin-top:6px; line-height:1.4;
+  .rf-node .nid { font-weight:700; font-size:14px; color:var(--ink); word-break:break-word; letter-spacing:-.01em;
+                  border-radius:6px; padding:1px 3px; margin:0 -3px; cursor:text; }
+  .rf-node .nid:hover { background:var(--line-soft); }
+  .rf-node.compact .nid { font-size:12.5px; }
+  .rf-node .nid-input {
+    font:inherit; font-weight:700; font-size:14px; color:var(--ink); width:100%;
+    border:1px solid var(--brand); border-radius:6px; padding:1px 4px; margin:0 -3px;
+    outline:none; box-shadow:0 0 0 3px var(--brand-50); background:#fff;
+  }
+  .rf-node .nprev { font-size:11.5px; color:var(--muted); margin-top:6px; line-height:1.45;
                     display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .rf-node .nprev.one { -webkit-line-clamp:1; }
+  .rf-node.compact .nprev { font-size:11px; margin-top:4px; }
+  /* questions list on a collect card */
+  .rf-node .nq { display:flex; gap:6px; align-items:baseline; margin-top:5px; font-size:11.5px;
+                 color:var(--ink-soft); line-height:1.4; }
+  .rf-node .nq .qdot { flex-shrink:0; width:5px; height:5px; border-radius:50%; position:relative; top:-2px; }
+  .rf-node .nq .qtxt { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+  .rf-node .nq.more { color:var(--muted); font-style:italic; }
+  /* chips: stored field keys, branch/categorize choices, tool action names */
+  .rf-node .nchips { display:flex; flex-wrap:wrap; gap:4px; margin-top:7px; align-items:center; }
+  .rf-node .nchips .chiplbl { font-size:9.5px; font-weight:700; text-transform:uppercase;
+                              letter-spacing:.05em; color:var(--muted); margin-right:1px; }
+  .rf-node .chip {
+    font-size:10.5px; font-weight:600; color:var(--ink-soft); background:var(--line-soft);
+    border:1px solid var(--line); border-radius:6px; padding:1px 7px; max-width:100%;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .rf-node .chip.key { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:10px; }
   .react-flow__handle { width:10px; height:10px; background:var(--brand); border:2px solid #fff; }
   .react-flow__edge-path { stroke-width:1.6; }
   .react-flow__controls { box-shadow:var(--shadow-md); border-radius:10px; overflow:hidden; border:1px solid var(--line); }
@@ -286,13 +324,21 @@
   .palette .adv-sub { font-size:11px; color:var(--muted); margin:-4px 0 10px; padding-left:2px; }
 
   /* ---- insert-on-edge affordance (React Flow edge label layer) ---- */
+  /* z-index 0 keeps labels ABOVE edges but BELOW node cards — a label whose
+     midpoint lands on a card tucks behind it instead of covering its content */
   .edge-lyr {
     position:absolute; pointer-events:all; display:flex; flex-direction:column;
-    align-items:center; gap:4px; z-index:5;
+    align-items:center; gap:4px; z-index:0;
   }
   .edge-tag {
-    background:#fff; border:1px solid var(--line); color:#4a5268;
-    font-size:10.5px; font-weight:650; padding:1px 7px; border-radius:6px; white-space:nowrap;
+    background:rgba(255,255,255,.92); border:1px solid var(--line-soft); color:#6b7285;
+    font-size:10px; font-weight:600; padding:0 6px; border-radius:6px; white-space:nowrap;
+    max-width:150px; overflow:hidden; text-overflow:ellipsis;
+  }
+  /* a revealed possible-jump label (edge hovered / endpoint selected) */
+  .edge-tag.emph {
+    background:#fff; border-color:#c7cde0; color:var(--ink-soft);
+    box-shadow:var(--shadow-sm); font-weight:650;
   }
   .edge-insert {
     display:inline-flex; align-items:center; gap:0; overflow:hidden;
@@ -306,6 +352,76 @@
     max-width:0; opacity:0; overflow:hidden; white-space:nowrap; transition:max-width .16s, opacity .12s, margin .12s;
   }
   .edge-insert:hover .ei-txt { max-width:90px; opacity:1; margin-left:5px; }
+
+  /* ---- "Advanced" collapsible in the properties panel ---- */
+  .adv { border:1px solid var(--line); border-radius:11px; margin:18px 0 4px; overflow:hidden; }
+  .adv-toggle {
+    display:flex; align-items:center; gap:7px; width:100%; text-align:left; justify-content:flex-start;
+    border:none; border-radius:0; background:var(--line-soft); color:var(--ink-soft);
+    font-size:12.5px; font-weight:700; padding:10px 13px;
+  }
+  .adv-toggle:hover { background:#e9ecf5; border:none; }
+  .adv-caret { display:inline-block; transition:transform .14s; font-size:11px; color:var(--muted); }
+  .adv-caret.open { transform:rotate(90deg); }
+  .adv-body { padding:14px 13px 6px; background:#fff; }
+  .adv-body .field:last-child { margin-bottom:10px; }
+
+  /* palette category groups */
+  .pal-group { margin-bottom:14px; }
+  .pal-group .pg-h {
+    display:flex; align-items:center; gap:7px; font-size:11px; font-weight:750;
+    text-transform:uppercase; letter-spacing:.06em; margin:0 0 7px; padding-left:2px;
+  }
+  .pal-group .pg-dot { width:8px; height:8px; border-radius:3px; flex-shrink:0; }
+
+  /* undo / redo topbar buttons */
+  button.iconbtn { padding:8px 9px; }
+
+  /* ---- Map / Outline view toggle ---- */
+  .seg { display:inline-flex; background:var(--line-soft); border:1px solid var(--line); border-radius:10px; padding:2px; gap:2px; }
+  .seg button { border:1px solid transparent; background:transparent; padding:5px 13px; font-size:12.5px; border-radius:8px; color:var(--muted); box-shadow:none; }
+  .seg button:hover { background:#e9ecf5; }
+  .seg button.on { background:#fff; color:var(--ink); border-color:var(--line); box-shadow:var(--shadow-sm); }
+  .seg button.on:hover { background:#fff; }
+
+  /* ---- read-only Outline view ---- */
+  .outline-wrap { position:absolute; inset:0; overflow:auto; padding:30px 24px 70px; }
+  .outline {
+    max-width:660px; margin:0 auto; background:#fff; border:1px solid var(--line);
+    border-radius:16px; padding:26px 30px 28px; box-shadow:var(--shadow-sm);
+  }
+  .outline h2 { font-size:17px; font-weight:750; margin:0 0 4px; letter-spacing:-.01em; }
+  .outline .o-sub { font-size:12.5px; color:var(--muted); margin-bottom:18px; line-height:1.5; }
+  .o-step {
+    display:flex; gap:9px; align-items:baseline; padding:7px 10px; border-radius:10px;
+    cursor:pointer; line-height:1.45;
+  }
+  .o-step:hover { background:var(--line-soft); }
+  .o-step.sel { background:var(--brand-50); }
+  .o-num { font-weight:700; color:var(--muted); font-size:12.5px; min-width:18px; text-align:right; flex-shrink:0; }
+  .o-dot { width:8px; height:8px; border-radius:3px; flex-shrink:0; position:relative; top:-1px; }
+  .o-name { font-weight:700; color:var(--ink); font-size:13.5px; white-space:nowrap; }
+  .o-desc { color:var(--muted); font-size:12.5px; min-width:0; }
+  .o-choices { margin:0 0 4px 47px; padding-bottom:2px; }
+  .o-choice { display:flex; gap:7px; align-items:baseline; font-size:12.5px; color:var(--ink-soft); padding:2px 10px; flex-wrap:wrap; }
+  .o-choice .o-lbl { color:var(--muted); }
+  .o-choice .o-arrow { color:#a9b1c7; }
+  .o-link {
+    border:none; background:transparent; padding:0 1px; font-size:12.5px; font-weight:650;
+    color:var(--brand-700); cursor:pointer; border-radius:4px; box-shadow:none;
+  }
+  .o-link:hover { background:var(--brand-50); border:none; }
+  .o-sec {
+    font-size:11px; text-transform:uppercase; letter-spacing:.07em; color:var(--muted);
+    font-weight:700; margin:20px 0 0 10px; padding-top:14px; border-top:1px solid var(--line-soft);
+  }
+  .o-endchips { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0 0 10px; }
+  .o-end {
+    display:inline-flex; align-items:center; gap:7px; padding:5px 12px; border-radius:999px;
+    border:1px solid var(--line); background:#fff; font-size:12.5px; font-weight:650; color:var(--ink-soft);
+  }
+  .o-end:hover { border-color:var(--brand); background:#fff; }
+  .o-end.sel { background:var(--brand-50); border-color:var(--brand-100); }
 </style>
 </head>
 <body>
@@ -346,6 +462,10 @@ function Icon({ name, size }) {
       return html`<svg ...${a}><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51z"/></svg>`;
     case "warn":
       return html`<svg ...${a}><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`;
+    case "undo":
+      return html`<svg ...${a}><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>`;
+    case "redo":
+      return html`<svg ...${a}><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/></svg>`;
     default:
       return null;
   }
@@ -390,28 +510,61 @@ function renameNodeInFlow(flow, oldId, newId, posMap) {
   if (posMap && posMap[oldId]) { posMap[newId] = posMap[oldId]; delete posMap[oldId]; }
 }
 
-/* ---- node type metadata --------------------------------------------------- */
-const NODE_TYPES = [
-  { key: "say",            label: "Say",              color: "var(--say)" },
-  { key: "collect",        label: "Collect (fixed)",  color: "var(--collect)" },
-  { key: "collect-custom", label: "Collect (custom)", color: "var(--collectc)" },
-  { key: "branch",         label: "Branch",           color: "var(--branch)" },
-  { key: "categorize",     label: "Categorize",       color: "var(--categorize)" },
-  { key: "tool",           label: "Tool",             color: "var(--tool)" },
-  { key: "handoff",        label: "Handoff",          color: "var(--handoff)" },
-  { key: "end",            label: "End",              color: "var(--end)" },
-];
-const COLOR = {
-  say:"var(--say)", collect:"var(--collect)", categorize:"var(--categorize)",
-  branch:"var(--branch)", tool:"var(--tool)", handoff:"var(--handoff)", end:"var(--end)",
+/* ---- node type metadata ----------------------------------------------------
+   Color communicates FUNCTION, not technical node type — four categories a
+   non-technical reader can hold in their head:
+     conversation (blue)  = the assistant talks / asks
+     decision     (amber) = the call branches on what the caller says
+     integration  (teal)  = the assistant performs an action / uses a tool
+     terminal     (rose)  = the call ends or leaves the assistant            */
+const CATEGORY = {
+  say: "conversation", collect: "conversation", "collect-custom": "conversation",
+  branch: "decision", categorize: "decision",
+  tool: "integration",
+  handoff: "terminal", end: "terminal",
 };
+const CAT_META = {
+  conversation: { label: "Conversation", color: "var(--cat-conv)", bg: "var(--cat-conv-bg)" },
+  decision:     { label: "Decision",     color: "var(--cat-dec)",  bg: "var(--cat-dec-bg)" },
+  integration:  { label: "Action",       color: "var(--cat-int)",  bg: "var(--cat-int-bg)" },
+  terminal:     { label: "Call ends",    color: "var(--cat-term)", bg: "var(--cat-term-bg)" },
+};
+// Human-readable label per visual type, shown on the card and in the panel.
+const TYPE_LABEL = {
+  say: "Say", collect: "Gather info", "collect-custom": "Ask questions",
+  branch: "Decision", categorize: "Direct caller",
+  tool: "Run action", handoff: "Hand to human", end: "End call",
+};
+const NODE_TYPES = [
+  { key: "say",            label: "Say something" },
+  { key: "collect",        label: "Gather info (freeform)" },
+  { key: "collect-custom", label: "Ask questions" },
+  { key: "branch",         label: "Decision" },
+  { key: "categorize",     label: "Direct caller" },
+  { key: "tool",           label: "Run an action" },
+  { key: "handoff",        label: "Hand to human" },
+  { key: "end",            label: "End call" },
+];
 // A collect node with a `fields` list is the clinic-defined custom-question variant.
 function visualType(node) {
   if (node.type === "collect" && Array.isArray(node.fields)) return "collect-custom";
   return node.type || "say";
 }
-function colorFor(node) {
-  return visualType(node) === "collect-custom" ? "var(--collectc)" : (COLOR[node.type] || "var(--muted)");
+function catFor(vt) { return CAT_META[CATEGORY[vt] || "conversation"]; }
+function colorFor(node) { return catFor(visualType(node)).color; }
+// "verify_existing_patient" → "verify existing patient" for chips/edge labels.
+function humanize(s) { return String(s || "").replace(/_/g, " "); }
+// One plain-words line for a decision card: instructions usually open with
+// greeting/tone fluff and bury the actual decision mid-text — prefer the first
+// sentence that asks something ("ask …", "whether …", or ends in "?"); fall
+// back to the first sentence. Display only.
+function decisionSummary(text) {
+  const sentences = String(text || "").split(/(?<=[.?!])\s+/);
+  let s = (sentences.find((x) => /\bask\b|\bwhether\b|\?/i.test(x)) || sentences[0] || "").trim();
+  // drop a leading clause before the ask ("In the same breath, ask if…" → "Ask if…")
+  const m = s.match(/\bask\b/i);
+  if (m && m.index > 0) s = s.slice(m.index);
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 /* ---- edge derivation (a VIEW over the config; never mutates it) ------------ */
@@ -448,6 +601,41 @@ function simpleLinearGoto(behavior) {
   return typeof behavior.goto === "string" ? behavior.goto : null;
 }
 
+/* ---- every route pointing AT a node (used so delete can reverse insert) ----
+   Returns one entry per inbound reference. Entries of a rewireable kind — a
+   node-level `next`, a bucket `next`, or a plain-string function
+   `behavior.goto` (the exact three routes insert-step writes) — carry a
+   `rewire(target)` that repoints them. Anything conditional (guard gotos,
+   nested routes, {cond,then,else}, categorize fallback) is `complex: true`:
+   we never rewrite those on delete. */
+function inboundRoutes(flow, nodeId) {
+  const inbound = [];
+  Object.entries(flow.nodes || {}).forEach(([nid, n]) => {
+    if (nid === nodeId) return; // the node's own routing points OUT, not in
+    if (n.next === nodeId) inbound.push({ rewire: (t) => { n.next = t; } });
+    (n.buckets || []).forEach((b) => {
+      if (b.next === nodeId) inbound.push({ rewire: (t) => { b.next = t; } });
+    });
+    if (n.fallback === nodeId) inbound.push({ complex: true });
+  });
+  Object.values(flow.functions || {}).forEach((fd) => {
+    const b = fd.behavior;
+    if (!b) return;
+    if (typeof b.goto === "string") {
+      if (b.goto === nodeId) inbound.push({ rewire: (t) => { b.goto = t; } });
+    } else {
+      const acc = [];
+      collectGoto(b.goto, acc); // {cond,then,else} targets
+      acc.forEach((t) => { if (t === nodeId) inbound.push({ complex: true }); });
+    }
+    const acc = [];
+    (b.guards || []).forEach((g) => collectGoto(g.goto, acc));
+    collectRoutes(b.routes, acc);
+    acc.forEach((t) => { if (t === nodeId) inbound.push({ complex: true }); });
+  });
+  return inbound;
+}
+
 function computeEdges(flow) {
   const nodeIds = new Set(Object.keys(flow.nodes || {}));
   // How many nodes expose each function — only single-use functions are safe to
@@ -458,21 +646,31 @@ function computeEdges(flow) {
 
   const edges = [];
   const seen = new Set();
-  // opts: { dashed, insertable, via }  — `via` describes how to rewire on insert
+  // opts: { kind, display, insertable, via } — `via` describes how to rewire on
+  // insert. `label` still keys the edge id (dedup); `display` is what's shown
+  // (may be "" to hide — keeps the map calm for non-technical readers).
+  // kind: primary (solid brand) | fallback (solid gray) | branch (dashed gray).
+  const STROKE = {
+    primary:  { style: { stroke: "#5E78EE", strokeWidth: 2 }, color: "#5E78EE" },
+    fallback: { style: { stroke: "#9aa3b8", strokeWidth: 1.8 }, color: "#9aa3b8" },
+    branch:   { style: { stroke: "#a9b1c7", strokeDasharray: "6 4", strokeWidth: 1.5 }, color: "#a9b1c7" },
+  };
   const add = (source, target, label, opts = {}) => {
     if (!target || !nodeIds.has(target)) return;
     const id = `${source}=>${target}#${label}`;
     if (seen.has(id)) return;
     seen.add(id);
-    const dashed = !!opts.dashed;
+    const kind = opts.kind || (opts.insertable ? "primary" : "branch");
+    const s = STROKE[kind] || STROKE.branch;
     edges.push({
       id, source, target,
       type: "flowEdge",
-      style: dashed
-        ? { stroke: "#a9b1c7", strokeDasharray: "6 4", strokeWidth: 1.6 }
-        : { stroke: "#5E78EE", strokeWidth: 1.8 },
-      markerEnd: { type: "arrowclosed", color: dashed ? "#a9b1c7" : "#5E78EE", width: 16, height: 16 },
-      data: { label, source, target, insertable: !!opts.insertable, via: opts.via || null },
+      style: s.style,
+      markerEnd: { type: "arrowclosed", color: s.color, width: 16, height: 16 },
+      data: {
+        label: opts.display !== undefined ? opts.display : label,
+        kind, source, target, insertable: !!opts.insertable, via: opts.via || null,
+      },
     });
   };
 
@@ -481,11 +679,13 @@ function computeEdges(flow) {
     if (node.type === "categorize") {
       // Each bucket target is a node-owned linear route → insertable.
       (node.buckets || []).forEach((b, i) =>
-        add(id, b.next, b.name || "bucket", { insertable: true, via: { type: "bucket", index: i } }));
+        add(id, b.next, b.name || "bucket",
+            { insertable: true, kind: "primary", display: humanize(b.name || "option"), via: { type: "bucket", index: i } }));
       // Fallback is a branching/default route → not insertable yet.
-      add(id, node.fallback, "fallback", { dashed: true });
+      add(id, node.fallback, "fallback", { kind: "fallback", display: "otherwise" });
     } else if (vt === "collect-custom") {
-      add(id, node.next, "next", { insertable: true, via: { type: "next" } });
+      // The one obvious "then continue to…" — no label needed.
+      add(id, node.next, "next", { insertable: true, kind: "primary", display: "", via: { type: "next" } });
     }
     // Routing implied by exposed functions.
     (node.functions || []).forEach((fn) => {
@@ -494,11 +694,12 @@ function computeEdges(flow) {
       const linear = simpleLinearGoto(def.behavior);
       if (linear && fnUsage[fn] === 1) {
         // Single unconditional target, used only here → a linear route we can
-        // insert into by editing this function's goto.
-        add(id, linear, fn, { insertable: true, via: { type: "goto", fn } });
+        // insert into by editing this function's goto. Part of the main path,
+        // so no label — it would just repeat what the cards already say.
+        add(id, linear, fn, { insertable: true, kind: "primary", display: "", via: { type: "goto", fn } });
       } else {
         // Conditional / multi-target / shared → branching (dashed, not insertable).
-        behaviorTargets(def.behavior).forEach((t) => add(id, t, fn, { dashed: true }));
+        behaviorTargets(def.behavior).forEach((t) => add(id, t, fn, { kind: "branch", display: humanize(fn) }));
       }
     });
   }
@@ -509,7 +710,7 @@ function computeEdges(flow) {
    Layered top-to-bottom layout: BFS assigns a depth level from the initial
    node, then a few barycenter sweeps order each row to minimise edge crossings.
    Rows are centred so the tree reads cleanly downward (handles are top/bottom). */
-const H_GAP = 250, V_GAP = 165, PAD = 60;
+const H_GAP = 360, V_GAP = 250, PAD = 60; // spacing only — same layout algorithm
 function layout(flow) {
   const ids = Object.keys(flow.nodes || {});
   if (!ids.length) return {};
@@ -571,53 +772,263 @@ function layout(flow) {
   return pos;
 }
 
-/* ---- custom React Flow node ----------------------------------------------- */
+/* ---- custom React Flow node -----------------------------------------------
+   Self-describing cards: each card summarizes what the step DOES so a reader
+   never has to click. All content is READ from the existing config — nothing
+   here writes to it. Double-click the title to rename in place (delegates to
+   the same rename logic the panel uses — no separate routing rewrite). */
+const CHIP_MAX = 4;
+function Chips({ label, items, mono }) {
+  if (!items || !items.length) return null;
+  const show = items.slice(0, CHIP_MAX);
+  const extra = items.length - show.length;
+  return html`
+    <div class="nchips">
+      ${label && html`<span class="chiplbl">${label}</span>`}
+      ${show.map((c, i) => html`<span key=${i} class=${"chip" + (mono ? " key" : "")}>${c}</span>`)}
+      ${extra > 0 && html`<span class="chip">+${extra} more</span>`}
+    </div>`;
+}
+
 function FlowNode({ id, data }) {
   const node = data.node;
   const vt = visualType(node);
-  const color = colorFor(node);
-  // For a custom-collect step, show intro + questions joined WITH a space so it
-  // reads "…the following: which pharmacy…" (not "following:which pharmacy").
-  const questions = Array.isArray(node.fields)
-    ? node.fields.map((f) => f.question).filter(Boolean).join(" · ") : "";
-  const preview = vt === "collect-custom"
-    ? [node.prompt, questions].filter(Boolean).join(" ")
-    : (node.instructions || node.prompt || "");
+  const cat = catFor(vt);
+  const compact = CATEGORY[vt] === "integration" || CATEGORY[vt] === "terminal";
+
+  // -- inline rename (double-click the title) --
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(id);
+  const startEdit = (e) => { e.stopPropagation(); setDraft(id); setEditing(true); };
+  const commit = () => {
+    setEditing(false);
+    const nid = draft.trim();
+    if (nid && nid !== id && data.onRename) data.onRename(id, nid);
+  };
+
+  // -- per-type summary content (display only) --
+  // Deliberately spare: no function-name chips (engineering detail — lives in
+  // the panel's Advanced section and on the dashed jump edges). Decision and
+  // terminal cards get ONE summary line; say/collect two; tool none (its
+  // action chip says it all). Collect keeps its questions + saved keys —
+  // that's the richness a GTM reader actually uses.
+  const questions = vt === "collect-custom"
+    ? (node.fields || []).map((f) => f.question).filter(Boolean) : [];
+  const fieldKeys = vt === "collect-custom"
+    ? (node.fields || []).map((f) => f.field).filter(Boolean) : [];
+  const actions = node.type === "tool" ? (node.functions || []).map(humanize) : [];
+  const oneLine = CATEGORY[vt] === "decision" || CATEGORY[vt] === "terminal";
+  let snippet = "";
+  if (vt !== "collect-custom" && node.type !== "tool") {
+    if (CATEGORY[vt] === "decision") {
+      // categorize's prompt already IS the question; branch needs extraction
+      snippet = (node.type === "categorize" && node.prompt)
+        ? node.prompt : decisionSummary(node.instructions || node.prompt);
+    } else {
+      snippet = node.instructions || node.prompt || "";
+    }
+  }
+  const qShow = questions.slice(0, 3);
+
   return html`
-    <div class=${"rf-node" + (data.selected ? " sel" : "")} style=${{ borderTopColor: color }}>
+    <div class=${"rf-node" + (data.selected ? " sel" : "") + (compact ? " compact" : "")}
+         style=${{ borderTopColor: cat.color }}>
       <${Handle} type="target" position=${Position.Top} />
       <div class="ntop">
-        <span class="ntype" style=${{ background: color }}>${vt.replace("-custom", " ·")}</span>
+        <span class="ntype" style=${{ background: cat.bg, color: cat.color }}>
+          <span class="tdot" style=${{ background: cat.color }}></span>${TYPE_LABEL[vt] || vt}
+        </span>
         ${data.isInitial && html`<span class="ninit" title="Start of the call"><${Icon} name="flag" size=${13} /></span>`}
       </div>
-      <div class="nid">${id}</div>
+      ${editing
+        ? html`<input class="nid-input nodrag" autoFocus value=${draft}
+                 onInput=${(e) => setDraft(e.target.value)}
+                 onBlur=${commit}
+                 onKeyDown=${(e) => {
+                   if (e.key === "Enter") e.target.blur();
+                   else if (e.key === "Escape") { setDraft(id); setEditing(false); }
+                 }}
+                 onClick=${(e) => e.stopPropagation()} />`
+        : html`<div class="nid" title="Double-click to rename" onDoubleClick=${startEdit}>${id}</div>`}
       ${data.orphan && html`<div class="norphan"><${Icon} name="warn" size=${12} /> not connected</div>`}
-      ${preview && html`<div class="nprev">${preview}</div>`}
+      ${snippet && html`<div class=${"nprev" + (oneLine ? " one" : "")}>${snippet}</div>`}
+      ${qShow.map((q, i) => html`
+        <div class="nq" key=${i}>
+          <span class="qdot" style=${{ background: cat.color }}></span><span class="qtxt">${q}</span>
+        </div>`)}
+      ${questions.length > 3 && html`<div class="nq more">+${questions.length - 3} more question${questions.length - 3 > 1 ? "s" : ""}</div>`}
+      <${Chips} label="saves" items=${fieldKeys} mono=${true} />
+      <${Chips} label="runs" items=${actions} />
       <${Handle} type="source" position=${Position.Bottom} />
     </div>`;
 }
 const nodeTypes = { flowNode: FlowNode };
 
-/* ---- custom edge: draws the route + an "Insert step here" affordance ------ */
+/* ---- custom edge: draws the route + an "Insert step here" affordance ------
+   Detail-on-demand: dashed "possible jump" (branch) edges rest at low opacity
+   with NO label, so the resting view reads as the clean main path. Hovering
+   the edge, or selecting either endpoint node, brings a jump edge to full
+   opacity and shows its label. Solid main-path/fallback edges are unaffected. */
 function FlowEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, style, markerEnd, data }) {
   const [edgePath, labelX, labelY] = getSmoothStepPath({
     sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition,
   });
   const d = data || {};
+  const [hover, setHover] = useState(false);
+  const isJump = d.kind === "branch";
+  const active = hover || !!d.emph;      // emph = an endpoint node is selected
+  const dimmed = isJump && !active;
+  const showLabel = !!d.label && (!isJump || active);
   return html`
-    <${BaseEdge} id=${id} path=${edgePath} style=${style} markerEnd=${markerEnd} />
-    <${EdgeLabelRenderer}>
-      <div class="edge-lyr" style=${{ transform: `translate(-50%,-50%) translate(${labelX}px,${labelY}px)` }}>
-        ${d.label && html`<span class="edge-tag">${d.label}</span>`}
-        ${d.insertable && html`
-          <button class="edge-insert" title="Insert a step here"
-            onClick=${(e) => { e.stopPropagation(); d.onInsert && d.onInsert(d.edgeInfo); }}>
-            <span class="ei-plus">+</span><span class="ei-txt">Insert step</span>
-          </button>`}
-      </div>
-    <//>`;
+    <${BaseEdge} id=${id} path=${edgePath} markerEnd=${markerEnd}
+      style=${{ ...style, opacity: dimmed ? 0.25 : 1, transition: "opacity .15s" }} />
+    ${isJump && html`
+      <path d=${edgePath} fill="none" stroke="transparent" strokeWidth=${16}
+        style=${{ pointerEvents: "stroke" }}
+        onMouseEnter=${() => setHover(true)} onMouseLeave=${() => setHover(false)} />`}
+    ${(showLabel || d.insertable) && html`
+      <${EdgeLabelRenderer}>
+        <div class="edge-lyr" style=${{ transform: `translate(-50%,-50%) translate(${labelX}px,${labelY}px)` }}
+          onMouseEnter=${() => setHover(true)} onMouseLeave=${() => setHover(false)}>
+          ${showLabel && html`<span class=${"edge-tag" + (isJump && active ? " emph" : "")}>${d.label}</span>`}
+          ${d.insertable && html`
+            <button class="edge-insert" title="Insert a step here"
+              onClick=${(e) => { e.stopPropagation(); d.onInsert && d.onInsert(d.edgeInfo); }}>
+              <span class="ei-plus">+</span><span class="ei-txt">Insert step</span>
+            </button>`}
+        </div>
+      <//>`}`;
 }
 const edgeTypes = { flowEdge: FlowEdge };
+
+/* ---- read-only Outline view -------------------------------------------------
+   Renders the CURRENT flow as an indented call script, derived fresh from the
+   config on every render — no separate state, nothing to sync, and it never
+   writes. The only interaction is clicking a step, which selects it (opens the
+   panel and highlights it when you switch back to the map). */
+
+// Visit order: walk from the first step along primary routing first (bucket
+// nexts, a step's own next, simple linear action gotos), then any remaining
+// branch targets — so the numbered list reads like the call's happy path.
+function outlineOrder(flow) {
+  const seen = new Set();
+  const order = [];
+  const start = flow.initial_node && flow.nodes[flow.initial_node]
+    ? flow.initial_node : Object.keys(flow.nodes || {})[0];
+  const visit = (id) => {
+    if (!id || seen.has(id) || !flow.nodes[id]) return;
+    seen.add(id);
+    order.push(id);
+    const n = flow.nodes[id];
+    const primary = [];
+    const rest = [];
+    (n.buckets || []).forEach((b) => primary.push(b.next));
+    if (typeof n.next === "string" && n.next) primary.push(n.next);
+    (n.functions || []).forEach((fn) => {
+      const def = (flow.functions || {})[fn];
+      if (!def) return;
+      const lin = simpleLinearGoto(def.behavior);
+      if (lin) primary.push(lin);
+      else rest.push(...behaviorTargets(def.behavior));
+    });
+    if (n.fallback) rest.push(n.fallback);
+    [...primary, ...rest].forEach(visit);
+  };
+  if (start) visit(start);
+  const orphans = Object.keys(flow.nodes || {}).filter((i) => !seen.has(i));
+  return { order, orphans };
+}
+
+function prettyStep(id) {
+  const s = humanize(id);
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+// One readable line per step: what it says (first sentence, quoted) or what it
+// collects (its saved answer keys).
+function outlineDesc(node) {
+  const vt = visualType(node);
+  if (vt === "collect-custom") {
+    const keys = (node.fields || []).map((f) => humanize(f.field) || f.question).filter(Boolean);
+    return keys.length ? "collects " + keys.join(", ") : "";
+  }
+  let s = CATEGORY[vt] === "decision"
+    ? decisionSummary(node.instructions || node.prompt)
+    : (String(node.instructions || node.prompt || "").split(/(?<=[.?!])\s+/)[0] || "").trim();
+  if (!s) return "";
+  if (s.length > 90) s = s.slice(0, 90).trimEnd() + "…";
+  return "“" + s + "”";
+}
+
+function Outline({ flow, selected, onPick }) {
+  const { order, orphans } = outlineOrder(flow);
+  const isTerminal = (id) => CATEGORY[visualType(flow.nodes[id])] === "terminal";
+  const main = order.filter((id) => !isTerminal(id));
+  const endings = order.filter(isTerminal);
+  // Choice lines appear only under decision steps — where the call branches.
+  const choicesFor = (id) => {
+    const n = flow.nodes[id];
+    if (CATEGORY[visualType(n)] !== "decision") return [];
+    const rows = [];
+    (n.buckets || []).forEach((b) => {
+      if (b.next && flow.nodes[b.next]) rows.push({ label: humanize(b.name || "option"), targets: [b.next] });
+    });
+    (n.functions || []).forEach((fn) => {
+      const def = (flow.functions || {})[fn];
+      if (!def) return;
+      const ts = [...new Set(behaviorTargets(def.behavior))].filter((t) => flow.nodes[t]);
+      if (ts.length) rows.push({ label: humanize(fn), targets: ts });
+    });
+    if (n.fallback && flow.nodes[n.fallback]) rows.push({ label: "if nothing matches", targets: [n.fallback] });
+    return rows;
+  };
+  const chip = (id, warn) => html`
+    <button key=${id} class=${"o-end" + (selected === id ? " sel" : "")} onClick=${() => onPick(id)}>
+      <span class="o-dot" style=${{ background: warn ? "#e08d2f" : catFor(visualType(flow.nodes[id])).color }}></span>
+      ${prettyStep(id)}
+    </button>`;
+  return html`
+    <div class="outline-wrap">
+      <div class="outline">
+        <h2>Call flow</h2>
+        <div class="o-sub">${flow.name ? flow.name + " — " : ""}the call in order, at a glance. Click a step to open it.</div>
+        ${main.map((id, i) => {
+          const node = flow.nodes[id];
+          const cat = catFor(visualType(node));
+          const desc = outlineDesc(node);
+          const rows = choicesFor(id);
+          return html`
+            <div key=${id}>
+              <div class=${"o-step" + (selected === id ? " sel" : "")} onClick=${() => onPick(id)}>
+                <span class="o-num">${i + 1}.</span>
+                <span class="o-dot" style=${{ background: cat.color }}></span>
+                <span class="o-name">${prettyStep(id)}</span>
+                ${desc && html`<span class="o-desc">— ${desc}</span>`}
+              </div>
+              ${rows.length > 0 && html`
+                <div class="o-choices">
+                  ${rows.map((r, j) => html`
+                    <div class="o-choice" key=${j}>
+                      <span class="o-lbl">${r.label}</span>
+                      <span class="o-arrow">→</span>
+                      ${r.targets.map((t, k) => html`
+                        <span key=${t}>
+                          ${k > 0 && html`<span class="o-arrow"> · </span>`}
+                          <button class="o-link" onClick=${() => onPick(t)}>${prettyStep(t)}</button>
+                        </span>`)}
+                    </div>`)}
+                </div>`}
+            </div>`;
+        })}
+        ${endings.length > 0 && html`
+          <div class="o-sec">Endings</div>
+          <div class="o-endchips">${endings.map((id) => chip(id, false))}</div>`}
+        ${orphans.length > 0 && html`
+          <div class="o-sec">Not connected</div>
+          <div class="o-endchips">${orphans.map((id) => chip(id, true))}</div>`}
+      </div>
+    </div>`;
+}
 
 /* ---- blank flow scaffold for CREATE --------------------------------------- */
 const DEFAULT_PERSONA =
@@ -646,9 +1057,12 @@ function blankFlow() {
 function newNodeSkeleton(vtype) {
   switch (vtype) {
     case "collect-custom":
+      // NOTE: no `prompt` — the engine has a sensible default intro. Writing the
+      // question into BOTH prompt and fields[].question made the assistant ask
+      // it twice on a call; the question lives in ONE place (fields[].question).
+      // An optional custom intro can still be set under Advanced in the panel.
       return {
         type: "collect",
-        prompt: "Ask the caller the following:",
         fields: [{ question: "", field: "", required: false }],
         next: "",
         functions: [],
@@ -702,6 +1116,7 @@ function App() {
   const [rfEdges, setRfEdges] = useState([]);
   const [selected, setSelected] = useState(null);
   const [showFlowSettings, setShowFlowSettings] = useState(false);
+  const [view, setView] = useState("map"); // "map" (default) | "outline" (read-only)
 
   const [flowList, setFlowList] = useState([]);
   const [loadedName, setLoadedName] = useState("");   // file stem currently loaded/saved
@@ -724,6 +1139,66 @@ function App() {
   // A single place to mark the flow as edited so the file pill reflects it.
   const markDirty = useCallback(() => { setDirty(true); bump(); }, [bump]);
 
+  /* ---- undo / redo ---------------------------------------------------------
+     History entries are deep snapshots of the flow CONFIG (the source of truth)
+     plus the editor-only positions — held in memory only (no localStorage).
+     Every mutation calls pushHistory() BEFORE touching the config; undo/redo
+     restore the config object and re-derive the whole view from it, so the
+     canvas can never disagree with what would be saved. JSON round-tripping
+     preserves key order, so undo never perturbs serialization. */
+  const undoStack = useRef([]);
+  const redoStack = useRef([]);
+  const lastEditKey = useRef(null); // coalesce keystrokes in one field → one undo step
+  const [, setHistRev] = useState(0); // re-render for button enabled/disabled
+  const takeSnapshot = () => {
+    const sig = JSON.stringify(flowRef.current) + JSON.stringify(posRef.current);
+    return { flow: JSON.parse(JSON.stringify(flowRef.current)), pos: { ...posRef.current }, sig };
+  };
+  // coalesceKey (optional string): consecutive pushes with the SAME key are
+  // collapsed — React onChange fires per keystroke, and typing one sentence
+  // must be ONE undo step, not forty.
+  const pushHistory = useCallback((coalesceKey) => {
+    if (!flowRef.current) return;
+    const key = typeof coalesceKey === "string" ? coalesceKey : null;
+    if (key && lastEditKey.current === key) { redoStack.current = []; return; }
+    lastEditKey.current = key;
+    const snap = takeSnapshot();
+    // skip no-op entries (e.g. a node click that starts a drag but never moves)
+    const top = undoStack.current[undoStack.current.length - 1];
+    if (top && top.sig === snap.sig) return;
+    undoStack.current.push(snap);
+    if (undoStack.current.length > 100) undoStack.current.shift();
+    redoStack.current = [];
+    setHistRev((h) => h + 1);
+  }, []);
+  const clearHistory = useCallback(() => {
+    undoStack.current = [];
+    redoStack.current = [];
+    lastEditKey.current = null;
+    setHistRev((h) => h + 1);
+  }, []);
+  const restoreSnapshot = useCallback((snap) => {
+    flowRef.current = snap.flow;
+    posRef.current = { ...snap.pos };
+    lastEditKey.current = null;
+    setSelected((s) => (s && snap.flow.nodes && snap.flow.nodes[s] ? s : null));
+    setDirty(true);
+    setHistRev((h) => h + 1);
+    bump();
+  }, [bump]);
+  const undo = useCallback(() => {
+    if (!flowRef.current || !undoStack.current.length) return;
+    redoStack.current.push(takeSnapshot());
+    restoreSnapshot(undoStack.current.pop());
+    showToast("Undid the last change");
+  }, [restoreSnapshot, showToast]);
+  const redo = useCallback(() => {
+    if (!flowRef.current || !redoStack.current.length) return;
+    undoStack.current.push(takeSnapshot());
+    restoreSnapshot(redoStack.current.pop());
+    showToast("Redid the change");
+  }, [restoreSnapshot, showToast]);
+
   /* ---- insert a NEW step INTO a linear route (A→B becomes A→new→B) --------
      Only called for insertable (solid) edges. Creates a custom-collect step —
      the type that linearly continues a call via its own `next` — and rewires:
@@ -733,10 +1208,21 @@ function App() {
   const insertStep = useCallback((edgeInfo) => {
     const flow = flowRef.current;
     if (!flow || !edgeInfo || !edgeInfo.via) {
-      showToast("Inserting into branching (function) routes is coming soon — for now, add steps along the main flow.", true);
+      showToast("Inserting on a dashed connection is coming soon — for now, add steps along the solid main path.", true);
       return;
     }
     const { source, target, via } = edgeInfo;
+    if (via.type === "goto") {
+      // Guard FIRST (before any mutation or history snapshot): only plain
+      // string gotos are insertable (computeEdges enforces this); anything
+      // else means stale edge data — bail without mutating.
+      const def = flow.functions[via.fn];
+      if (!def || !def.behavior || typeof def.behavior.goto !== "string") {
+        showToast("Inserting on a dashed connection is coming soon — for now, add steps along the solid main path.", true);
+        return;
+      }
+    }
+    pushHistory();
     const id = uniqueId(flow, "collect");
     const nn = newNodeSkeleton("collect-custom");
     nn.next = target || "";                 // new → original downstream
@@ -747,13 +1233,6 @@ function App() {
       // REPLACE the function's single linear goto in place — the goto lives on
       // `behavior`, and a function must never end up with more than one goto.
       const def = flow.functions[via.fn];
-      if (!def || !def.behavior || typeof def.behavior.goto !== "string") {
-        // Guard: only plain string gotos are insertable (computeEdges enforces
-        // this); anything else means stale edge data — bail without mutating.
-        delete flow.nodes[id];
-        showToast("Inserting into branching (function) routes is coming soon — for now, add steps along the main flow.", true);
-        return;
-      }
       def.behavior.goto = id;
       // Remove any stray function-level "goto" a previous buggy insert left
       // behind — the engine only reads behavior.goto; a second goto is invalid.
@@ -767,7 +1246,78 @@ function App() {
     setViewKey((k) => k + 1);
     bump();
     showToast(`Inserted a new step between "${source}" and "${target}" — edit it in the panel`);
-  }, [bump, showToast]);
+  }, [bump, showToast, pushHistory]);
+
+  /* ---- rename (shared by the panel field AND double-click-on-card) --------
+     Validates, then delegates to renameNodeInFlow — the ONE place that
+     rewrites every routing reference (next, fallback, bucket targets,
+     function behavior.goto at the correct level, initial_node).
+     Returns an error string, or null on success. */
+  const renameNode = useCallback((oldId, newIdRaw) => {
+    const flow = flowRef.current;
+    if (!flow || !flow.nodes[oldId]) return "That step no longer exists.";
+    const newId = String(newIdRaw || "").trim();
+    if (newId === oldId) return null;
+    if (!/^[A-Za-z0-9_-]+$/.test(newId)) {
+      showToast("Step names can use letters, numbers, _ and - only", true);
+      return "Use letters, numbers, _ and - only.";
+    }
+    if (flow.nodes[newId]) {
+      showToast(`A step named "${newId}" already exists`, true);
+      return `A step named "${newId}" already exists.`;
+    }
+    pushHistory();
+    renameNodeInFlow(flow, oldId, newId, posRef.current);
+    setSelected((s) => (s === oldId ? newId : s));
+    setDirty(true);
+    bump();
+    showToast(`Renamed to "${newId}"`);
+    return null;
+  }, [pushHistory, bump, showToast]);
+
+  /* ---- delete (shared by the panel button AND the Delete/Backspace key) ----
+     Always deletes from the CONFIG via the in-app confirm modal — never a
+     visual-only removal (React Flow's built-in delete key is disabled below,
+     since it only removed the card from the canvas and the step re-appeared
+     on the next rebuild). */
+  const requestDelete = useCallback((nodeId) => {
+    const flow = flowRef.current;
+    if (!flow || !flow.nodes[nodeId]) return;
+    const node = flow.nodes[nodeId];
+    // Delete reverses insert when it safely can: EXACTLY one inbound route of a
+    // rewireable kind (next / bucket next / plain behavior.goto — the same
+    // three insert writes) AND the node has its own simple `next` to a real
+    // node. Then A → deleted → B becomes A → B again. Anything more complex
+    // falls back to plain removal, with an honest warning.
+    const inbound = inboundRoutes(flow, nodeId);
+    const nextId = typeof node.next === "string" && node.next && node.next !== nodeId
+      && flow.nodes[node.next] ? node.next : null;
+    const canBridge = inbound.length === 1 && !inbound[0].complex && !!nextId;
+    const message = canBridge
+      ? `This removes the step and reconnects the flow around it — the step before it will go straight to “${nextId}”. You can undo this with ⌘Z.`
+      : (inbound.length > 0
+          ? `This removes the step from the flow and the saved file. ${inbound.length} connection${inbound.length > 1 ? "s" : ""} pointing here will be left unconnected — reconnect the affected steps afterwards. You can undo this with ⌘Z.`
+          : "This removes the step from the flow — it will be gone from the saved file too. You can undo this with ⌘Z.");
+    setConfirmBox({
+      title: `Delete “${nodeId}”?`,
+      message,
+      confirmLabel: "Delete step",
+      onConfirm: () => {
+        pushHistory(); // ONE snapshot covers the rewire + removal → one ⌘Z
+        if (canBridge) inbound[0].rewire(nextId);
+        delete flow.nodes[nodeId];
+        delete posRef.current[nodeId];
+        if (flow.initial_node === nodeId) flow.initial_node = Object.keys(flow.nodes)[0] || "";
+        setConfirmBox(null);
+        setSelected(null);
+        setDirty(true);
+        bump();
+        showToast(canBridge
+          ? `Deleted "${nodeId}" — reconnected the flow to "${nextId}"`
+          : `Deleted "${nodeId}"`);
+      },
+    });
+  }, [pushHistory, bump, showToast]);
 
   /* rebuild the React Flow view from the current flow config */
   const rebuild = useCallback((relayout) => {
@@ -780,6 +1330,8 @@ function App() {
         ...e.data,
         onInsert: insertStep,
         edgeInfo: { source: e.data.source, target: e.data.target, via: e.data.via },
+        // selecting a node surfaces its dashed "possible jump" edges + labels
+        emph: !!selected && (e.source === selected || e.target === selected),
       },
     }));
     // a step nothing routes to (and isn't the start) is a disconnected orphan
@@ -797,13 +1349,41 @@ function App() {
         isInitial: flow.initial_node === id,
         selected: selected === id,
         orphan: flow.initial_node !== id && !incoming.has(id),
+        onRename: renameNode,
       },
     }));
     setRfNodes(nodes);
     setRfEdges(edges);
-  }, [selected, insertStep]);
+  }, [selected, insertStep, renameNode]);
 
   useEffect(() => { rebuild(false); }, [rev, selected, rebuild]);
+
+  /* ---- keyboard: ⌘Z / Ctrl+Z undo, ⌘⇧Z redo, Delete/Backspace deletes ------
+     Skipped while typing in a field (native text undo wins) or while a modal
+     is open. Delete goes through the same confirm-modal + config delete as
+     the panel button — React Flow's visual-only delete key is disabled. */
+  const uiRef = useRef({});
+  useEffect(() => {
+    uiRef.current = { selected, modal: showOpen || showSave || !!confirmBox };
+  });
+  useEffect(() => {
+    const onKey = (e) => {
+      const t = e.target;
+      const typing = t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" ||
+                           t.tagName === "SELECT" || t.isContentEditable);
+      if (uiRef.current.modal) return;
+      if ((e.metaKey || e.ctrlKey) && (e.key === "z" || e.key === "Z")) {
+        if (typing) return;
+        e.preventDefault();
+        if (e.shiftKey) redo(); else undo();
+      } else if ((e.key === "Backspace" || e.key === "Delete") && !typing && uiRef.current.selected) {
+        e.preventDefault();
+        requestDelete(uiRef.current.selected);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [undo, redo, requestDelete]);
 
   const refreshList = useCallback(() => {
     return fetch("/api/flows").then((r) => r.json()).then((d) => setFlowList(d.flows || []))
@@ -822,6 +1402,7 @@ function App() {
       const text = await res.text();
       flowRef.current = JSON.parse(text);   // preserves key order
       posRef.current = {};
+      clearHistory();
       setSelected(null);
       setShowFlowSettings(false);
       setLoadedName(name);
@@ -834,13 +1415,14 @@ function App() {
     } catch (e) {
       showToast(`Load failed: ${e.message}`, true);
     }
-  }, [rebuild, bump, showToast]);
+  }, [rebuild, bump, showToast, clearHistory]);
 
   /* ---- create blank ---- */
   const createNew = useCallback(() => {
     const start = () => {
       flowRef.current = blankFlow();
       posRef.current = {};
+      clearHistory();
       setSelected(null);
       setShowFlowSettings(false);
       setLoadedName("");
@@ -858,7 +1440,7 @@ function App() {
         onConfirm: () => { setConfirmBox(null); start(); },
       });
     } else start();
-  }, [rebuild, bump, showToast, dirty]);
+  }, [rebuild, bump, showToast, dirty, clearHistory]);
 
   /* ---- save (name is explicit; called by Save / Save-as) ---- */
   const doSave = useCallback(async (rawName) => {
@@ -870,7 +1452,7 @@ function App() {
       showToast("File name: letters, numbers, - and _ only", true); return false;
     }
     if (!flow.nodes || !flow.nodes[flow.initial_node]) {
-      showToast(`The start node "${flow.initial_node}" isn't defined`, true); return false;
+      showToast(`The first step "${flow.initial_node}" isn't defined`, true); return false;
     }
     try {
       const body = JSON.stringify(flow, null, 2);
@@ -914,6 +1496,7 @@ function App() {
   const addNode = useCallback((vtype) => {
     const flow = flowRef.current;
     if (!flow) { showToast("Create or open a flow first", true); return; }
+    pushHistory();
     const id = uniqueId(flow, baseIdFor(vtype));
     flow.nodes[id] = newNodeSkeleton(vtype);
     // place below existing nodes so it never lands on top of another card
@@ -923,8 +1506,8 @@ function App() {
     setSelected(id);
     setDirty(true);
     bump();
-    showToast(`Added loose step "${id}" — connect it with "+ Insert step" on a solid line, or set its routing`, true);
-  }, [bump, showToast]);
+    showToast(`Added loose step "${id}" — connect it with "+ Insert step" on a solid line, or set where it goes in the panel`, true);
+  }, [bump, showToast, pushHistory]);
 
   /* ---- React Flow interactions ---- */
   const onNodesChange = useCallback((changes) => {
@@ -945,7 +1528,7 @@ function App() {
   // isn't supported yet. Insertable edges are handled by their own "+" button.
   const onEdgeClick = useCallback((_e, edge) => {
     if (edge.data && edge.data.insertable) return;
-    showToast("Inserting into branching (function) routes is coming soon — for now, add steps along the main flow.", true);
+    showToast("Inserting on a dashed connection is coming soon — for now, add steps along the solid main path.", true);
   }, [showToast]);
 
   // Drag-to-connect: set routing where a node HAS a node-level target.
@@ -954,18 +1537,20 @@ function App() {
     const src = flow.nodes[c.source];
     if (!src) return;
     if (visualType(src) === "collect-custom") {
+      pushHistory();
       src.next = c.target;
       showToast(`${c.source} → ${c.target}`);
       markDirty();
     } else if (src.type === "categorize") {
+      pushHistory();
       if (!src.fallback) src.fallback = c.target;
       else (src.buckets = src.buckets || []).push({ name: "new_bucket", description: "", next: c.target });
       showToast(`Routing added → ${c.target} (name it in the panel)`);
       markDirty();
     } else {
-      showToast("Routing for this node is defined by its functions (advanced) — connect it in the panel", true);
+      showToast("This step's routing is set by its actions (advanced) — connect it in the panel", true);
     }
-  }, [markDirty, showToast]);
+  }, [markDirty, showToast, pushHistory]);
 
   const flow = flowRef.current;
   const nodeIdList = flow ? Object.keys(flow.nodes || {}) : [];
@@ -984,6 +1569,20 @@ function App() {
         <div class="divider"></div>
         <button onClick=${() => { refreshList(); setShowOpen(true); }}><${Icon} name="open" /> Open flow</button>
         <button onClick=${createNew}><${Icon} name="plus" /> New</button>
+
+        <div class="divider"></div>
+        <button class="iconbtn" title="Undo (⌘Z)" onClick=${undo}
+                disabled=${!flow || undoStack.current.length === 0}><${Icon} name="undo" /></button>
+        <button class="iconbtn" title="Redo (⌘⇧Z)" onClick=${redo}
+                disabled=${!flow || redoStack.current.length === 0}><${Icon} name="redo" /></button>
+
+        <div class="divider"></div>
+        <div class="seg">
+          <button class=${view === "map" ? "on" : ""} disabled=${!flow}
+                  onClick=${() => setView("map")}>Map</button>
+          <button class=${view === "outline" ? "on" : ""} disabled=${!flow} title="Read-only call script"
+                  onClick=${() => setView("outline")}>Outline</button>
+        </div>
 
         <div class="spacer"></div>
 
@@ -1009,21 +1608,35 @@ function App() {
             <div>To weave a step into the call, hover a <strong>solid line</strong> and click <strong>+ Insert step</strong>.</div>
           </div>
           <div class="side-h adv-h">Add a loose step</div>
-          <div class="adv-sub">Advanced — starts unconnected; you'll wire its routing yourself.</div>
-          ${NODE_TYPES.map((t) => html`
-            <button key=${t.key} class="addbtn" onClick=${() => addNode(t.key)} title=${"Add a loose " + t.label + " step"}>
-              <span class="swatch" style=${{ background: t.color }}></span>${t.label}
-            </button>`)}
+          <div class="adv-sub">Advanced — starts unconnected; you'll connect it yourself.</div>
+          ${["conversation", "decision", "integration", "terminal"].map((cat) => html`
+            <div class="pal-group" key=${cat}>
+              <div class="pg-h" style=${{ color: CAT_META[cat].color }}>
+                <span class="pg-dot" style=${{ background: CAT_META[cat].color }}></span>${CAT_META[cat].label}
+              </div>
+              ${NODE_TYPES.filter((t) => CATEGORY[t.key] === cat).map((t) => html`
+                <button key=${t.key} class="addbtn" onClick=${() => addNode(t.key)} title=${"Add a loose “" + t.label + "” step"}>
+                  <span class="swatch" style=${{ background: CAT_META[cat].color }}></span>${t.label}
+                </button>`)}
+            </div>`)}
           <div class="legend">
             <div class="side-h">How to read the map</div>
-            <div class="legend-row"><span class="legend-line solid"></span> Linear route — insertable</div>
-            <div class="legend-row"><span class="legend-line dashed"></span> Branching / function route</div>
+            <div class="legend-row"><span class="legend-line primary"></span> Main path — insertable</div>
+            <div class="legend-row"><span class="legend-line gray"></span> If nothing matches</div>
+            <div class="legend-row"><span class="legend-line dashed"></span> Possible jump</div>
+            <div class="legend-row" style=${{ marginTop: "10px" }}><span class="legend-sw" style=${{ background: "var(--cat-conv)" }}></span> Conversation</div>
+            <div class="legend-row"><span class="legend-sw" style=${{ background: "var(--cat-dec)" }}></span> Decision</div>
+            <div class="legend-row"><span class="legend-sw" style=${{ background: "var(--cat-int)" }}></span> Action</div>
+            <div class="legend-row"><span class="legend-sw" style=${{ background: "var(--cat-term)" }}></span> Call ends</div>
           </div>
         </div>
 
         <!-- canvas -->
         <div class="canvas">
-          ${flow
+          ${flow && view === "outline"
+            ? html`<${Outline} flow=${flow} selected=${selected}
+                      onPick=${(id) => { setShowFlowSettings(false); setSelected(id); }} />`
+            : flow
             ? html`<${ReactFlow}
                 key=${viewKey}
                 nodes=${rfNodes} edges=${rfEdges}
@@ -1031,6 +1644,8 @@ function App() {
                 onNodesChange=${onNodesChange} onEdgesChange=${onEdgesChange}
                 onConnect=${onConnect}
                 onNodeClick=${onNodeClick} onPaneClick=${onPaneClick} onEdgeClick=${onEdgeClick}
+                onNodeDragStart=${pushHistory}
+                deleteKeyCode=${null} zoomOnDoubleClick=${false}
                 fitView minZoom=${0.2} proOptions=${{ hideAttribution: true }}>
                 <${Background} gap=${22} size=${1.4} color="#dfe3f0" />
                 <${Controls} showInteractive=${false} />
@@ -1048,11 +1663,12 @@ function App() {
         <!-- properties / flow settings -->
         <div class="panel">
           ${showFlowSettings && flow
-            ? html`<${FlowSettings} flow=${flow} markDirty=${markDirty} onClose=${() => setShowFlowSettings(false)} />`
+            ? html`<${FlowSettings} flow=${flow} markDirty=${markDirty} pushHistory=${pushHistory} onClose=${() => setShowFlowSettings(false)} />`
             : (selected && flow && flow.nodes[selected]
                 ? html`<${Props} key=${selected} flow=${flow} nodeId=${selected}
-                          nodeIds=${nodeIdList} markDirty=${markDirty} setSelected=${setSelected}
-                          showToast=${showToast} posRef=${posRef} askConfirm=${setConfirmBox} />`
+                          nodeIds=${nodeIdList} markDirty=${markDirty} pushHistory=${pushHistory}
+                          renameNode=${renameNode} requestDelete=${requestDelete}
+                          showToast=${showToast} />`
                 : html`<div class="empty">
                     <span class="big"><${Icon} name="cursor" size=${34} /></span>
                     ${flow ? "Click a step on the map to edit it, or hover a solid line and click + Insert step." : "No flow open yet."}
@@ -1153,9 +1769,9 @@ function ConfirmModal({ title, message, confirmLabel, onConfirm, onCancel }) {
 }
 
 /* ---- flow-level settings (persona / name / initial) ----------------------- */
-function FlowSettings({ flow, markDirty, onClose }) {
+function FlowSettings({ flow, markDirty, pushHistory, onClose }) {
   const [, force] = useState(0);
-  const set = (k, v) => { flow[k] = v; force((n) => n + 1); markDirty(); };
+  const set = (k, v) => { pushHistory(`flow:${k}`); flow[k] = v; force((n) => n + 1); markDirty(); };
   return html`
     <div class="panel-h"><${Icon} name="settings" /><h2>Flow settings</h2></div>
     <div class="field">
@@ -1164,7 +1780,7 @@ function FlowSettings({ flow, markDirty, onClose }) {
              onChange=${(e) => set("name", e.target.value)} />
     </div>
     <div class="field">
-      <label>Start node <span class="hint inline">(where every call begins)</span></label>
+      <label>First step <span class="hint inline">(where every call begins)</span></label>
       <select class="full" value=${flow.initial_node || ""}
               onChange=${(e) => set("initial_node", e.target.value)}>
         ${Object.keys(flow.nodes || {}).map((id) => html`<option key=${id} value=${id}>${id}</option>`)}
@@ -1179,15 +1795,49 @@ function FlowSettings({ flow, markDirty, onClose }) {
     <button onClick=${onClose}>Close settings</button>`;
 }
 
-/* ---- per-node properties panel -------------------------------------------- */
-function Props({ flow, nodeId, nodeIds, markDirty, setSelected, showToast, posRef, askConfirm }) {
+/* ---- collapsible "Advanced" section (closed by default) -------------------- */
+function Advanced({ children }) {
+  const [open, setOpen] = useState(false);
+  return html`
+    <div class="adv">
+      <button class="adv-toggle" onClick=${() => setOpen((o) => !o)}>
+        <span class=${"adv-caret" + (open ? " open" : "")}>▸</span> Advanced
+      </button>
+      ${open && html`<div class="adv-body">${children}</div>`}
+    </div>`;
+}
+
+// Suggest a storage key from a question: "Which pharmacy do you use?" → "pharmacy".
+const SLUG_STOP = new Set([
+  "which", "what", "whats", "who", "when", "where", "how", "do", "does", "did",
+  "you", "your", "the", "a", "an", "is", "are", "was", "of", "to", "for", "use",
+  "please", "me", "tell", "have", "has", "any", "their", "there", "they", "we", "i",
+]);
+function suggestFieldKey(question) {
+  const words = String(question || "").toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ").trim().split(/\s+/)
+    .filter((w) => w && !SLUG_STOP.has(w));
+  return words.slice(0, 3).join("_");
+}
+
+/* ---- per-node properties panel ---------------------------------------------
+   Progressive disclosure: what a GTM user edits (name, what's said, questions,
+   where it goes next) comes first; technical settings (available actions,
+   required/answer type, context reset) live behind "Advanced ▸". Every
+   mutation snapshots history first, so ⌘Z covers field edits too. */
+function Props({ flow, nodeId, nodeIds, markDirty, pushHistory, renameNode, requestDelete, showToast }) {
   const node = flow.nodes[nodeId];
   const [, force] = useState(0);
   const touch = () => { force((n) => n + 1); markDirty(); };
+  // one undo step per edit, snapshotted BEFORE the mutation; a `key` marks
+  // keystroke-level edits to one field so they coalesce into a single step
+  const edit = (fn, key) => { pushHistory(key ? `${nodeId}:${key}` : undefined); fn(); touch(); };
   const vt = visualType(node);
+  const cat = catFor(vt);
   const allFns = Object.keys(flow.functions || {});
 
-  // Editable step id (rename). Committed on blur / Enter; rewrites all routes.
+  // Editable step id (rename). Committed on blur / Enter; delegates to the
+  // shared rename logic that rewrites every routing reference.
   const [idDraft, setIdDraft] = useState(nodeId);
   const [idErr, setIdErr] = useState("");
   const incoming = new Set(computeEdges(flow).map((e) => e.target));
@@ -1195,40 +1845,21 @@ function Props({ flow, nodeId, nodeIds, markDirty, setSelected, showToast, posRe
   const commitId = () => {
     const nid = idDraft.trim();
     if (nid === nodeId) { setIdErr(""); return; }
-    if (!/^[A-Za-z0-9_-]+$/.test(nid)) { setIdErr("Use letters, numbers, _ and - only."); return; }
-    if (flow.nodes[nid]) { setIdErr(`A step named "${nid}" already exists.`); return; }
-    renameNodeInFlow(flow, nodeId, nid, posRef.current);
-    setIdErr("");
-    setSelected(nid);        // Props remounts (key=selected) with the new id
-    markDirty();
-    showToast(`Renamed to "${nid}"`);
+    const err = renameNode(nodeId, nid);
+    setIdErr(err || "");   // on success Props remounts (key=selected) with the new id
   };
 
-  const setField = (k, v) => { node[k] = v; touch(); };
-  const delField = (k) => { delete node[k]; touch(); };
+  const setField = (k, v) => edit(() => { node[k] = v; }, k);
+  const delField = (k) => edit(() => { delete node[k]; });
 
-  const toggleFn = (fn) => {
+  const toggleFn = (fn) => edit(() => {
     const cur = node.functions || [];
     node.functions = cur.includes(fn) ? cur.filter((x) => x !== fn) : [...cur, fn];
-    touch();
-  };
+  });
 
-  const setInitial = () => { flow.initial_node = nodeId; touch(); showToast(`"${nodeId}" is now the start node`); };
-
-  const deleteNode = () => {
-    askConfirm({
-      title: `Delete “${nodeId}”?`,
-      message: "This removes the step from the flow. Any arrows pointing to it will simply stop drawing. You can’t undo this.",
-      confirmLabel: "Delete step",
-      onConfirm: () => {
-        delete flow.nodes[nodeId];
-        delete posRef.current[nodeId];
-        if (flow.initial_node === nodeId) flow.initial_node = Object.keys(flow.nodes)[0] || "";
-        askConfirm(null);
-        setSelected(null);
-        markDirty();
-      },
-    });
+  const setInitial = () => {
+    edit(() => { flow.initial_node = nodeId; });
+    showToast(`"${nodeId}" is now the first step`);
   };
 
   const hasFns = ["say", "collect", "branch", "tool", "handoff", "end", "collect-custom"].includes(vt);
@@ -1241,32 +1872,32 @@ function Props({ flow, nodeId, nodeIds, markDirty, setSelected, showToast, posRe
 
   return html`
     <div class="panel-h">
-      <span class="badge" style=${{ background: colorFor(node) }}>${vt.replace("-", " ")}</span>
+      <span class="badge" style=${{ background: cat.bg, color: cat.color }}>${TYPE_LABEL[vt] || vt}</span>
       <h2>Edit step</h2>
     </div>
 
     ${isOrphan && html`
       <div class="note warn" style=${{ marginBottom: "14px" }}>
         <${Icon} name="warn" size=${14} />
-        <div>This step isn't connected — nothing routes to it, so a call never reaches it.
-          Use <strong>+ Insert step</strong> on a solid line, or point another step's routing here.</div>
+        <div>This step isn't connected — nothing leads to it, so a call never reaches it.
+          Use <strong>+ Insert step</strong> on a solid line, or point another step here.</div>
       </div>`}
 
     <div class="field">
-      <label>Step name / ID <span class="hint inline">(letters, numbers, _ and -)</span></label>
+      <label>Step name <span class="hint inline">(letters, numbers, _ and -)</span></label>
       <input class="full" type="text" value=${idDraft}
              onInput=${(e) => { setIdDraft(e.target.value); if (idErr) setIdErr(""); }}
              onBlur=${commitId}
              onKeyDown=${(e) => { if (e.key === "Enter") e.target.blur(); }} />
       ${idErr
         ? html`<span class="hint" style=${{ color: "var(--err)" }}>${idErr}</span>`
-        : html`<span class="hint">The step's unique id. Renaming updates every route that points here.</span>`}
+        : html`<span class="hint">Renaming updates everything that points here. Tip: you can also double-click the name on the card.</span>`}
     </div>
 
     <div class="field">
       ${flow.initial_node === nodeId
-        ? html`<span class="initial-tag"><${Icon} name="flag" size=${12} /> Start node</span>`
-        : html`<button class="tiny" onClick=${setInitial}>Make this the start node</button>`}
+        ? html`<span class="initial-tag"><${Icon} name="flag" size=${12} /> First step</span>`
+        : html`<button class="tiny" onClick=${setInitial}>Make this the first step</button>`}
     </div>
 
     ${node.type === "categorize" && html`
@@ -1276,28 +1907,28 @@ function Props({ flow, nodeId, nodeIds, markDirty, setSelected, showToast, posRe
       </div>
       <div class="field">
         <label>Options</label>
-        <span class="hint" style=${{ marginTop: 0, marginBottom: "8px" }}>Each option routes the caller to a different step based on what they say.</span>
+        <span class="hint" style=${{ marginTop: 0, marginBottom: "8px" }}>Each option sends the caller to a different step based on what they say.</span>
         ${(node.buckets || []).map((b, i) => html`
           <div class="subcard" key=${i}>
             <div class="smalllbl">name</div>
             <div class="row"><input type="text" value=${b.name || ""}
-              onChange=${(e) => { b.name = e.target.value; touch(); }} /></div>
+              onChange=${(e) => edit(() => { b.name = e.target.value; }, `bucket${i}.name`)} /></div>
             <div class="smalllbl">description</div>
             <div class="row"><input type="text" value=${b.description || ""}
-              onChange=${(e) => { b.description = e.target.value; touch(); }} /></div>
+              onChange=${(e) => edit(() => { b.description = e.target.value; }, `bucket${i}.desc`)} /></div>
             <div class="smalllbl">goes to</div>
             <div class="row">
-              <select value=${b.next || ""} onChange=${(e) => { b.next = e.target.value; touch(); }}>
+              <select value=${b.next || ""} onChange=${(e) => edit(() => { b.next = e.target.value; })}>
                 <option value="">— choose a step —</option>
                 ${nodeIds.map((id) => html`<option key=${id} value=${id}>${id}</option>`)}
               </select>
-              <button class="danger tiny" onClick=${() => { node.buckets.splice(i, 1); touch(); }}>✕</button>
+              <button class="danger tiny" onClick=${() => edit(() => { node.buckets.splice(i, 1); })}>✕</button>
             </div>
           </div>`)}
-        <button class="tiny" onClick=${() => { (node.buckets = node.buckets || []).push({ name: "", description: "", next: "" }); touch(); }}>+ Add option</button>
+        <button class="tiny" onClick=${() => edit(() => { (node.buckets = node.buckets || []).push({ name: "", description: "", next: "" }); })}>+ Add option</button>
       </div>
       <div class="field">
-        <label>Fallback <span class="hint inline">(when nothing matches)</span></label>
+        <label>If nothing matches <span class="hint inline">(when no option fits)</span></label>
         <select class="full" value=${node.fallback || ""} onChange=${(e) => setField("fallback", e.target.value)}>
           <option value="">— choose a step —</option>
           ${nodeIds.map((id) => html`<option key=${id} value=${id}>${id}</option>`)}
@@ -1306,33 +1937,30 @@ function Props({ flow, nodeId, nodeIds, markDirty, setSelected, showToast, posRe
 
     ${vt === "collect-custom" && html`
       <div class="field">
-        <label>Prompt <span class="hint inline">(intro before the questions)</span></label>
-        <textarea rows=${2} value=${node.prompt || ""} onChange=${(e) => setField("prompt", e.target.value)}></textarea>
-      </div>
-      <div class="field">
-        <label>Questions to ask</label>
+        <label>Questions to ask <span class="hint inline">(each is asked once, exactly as written)</span></label>
         ${(node.fields || []).map((f, i) => html`
           <div class="subcard" key=${i}>
-            <div class="smalllbl">question (spoken)</div>
-            <div class="row"><input type="text" placeholder="e.g. Which pharmacy do you use?" value=${f.question || ""}
-              onChange=${(e) => { f.question = e.target.value; touch(); }} /></div>
-            <div class="smalllbl">field (stored key)</div>
-            <div class="row"><input type="text" placeholder="e.g. pharmacy" value=${f.field || ""}
-              onChange=${(e) => { f.field = e.target.value; touch(); }}
-              onBlur=${(e) => { const n = normalizeFieldKey(e.target.value); if (n !== f.field) { f.field = n; touch(); } }} /></div>
-            <span class="hint" style=${{ marginTop: 0, marginBottom: "8px" }}>The name to store the answer under, e.g. <code style=${{ background:"#fff", padding:"1px 4px", borderRadius:"3px" }}>pharmacy</code></span>
+            <div class="smalllbl">question (spoken to the caller)</div>
             <div class="row">
-              <label class="chk"><input type="checkbox" checked=${!!f.required}
-                onChange=${(e) => { f.required = e.target.checked; touch(); }} /> required</label>
-              <select value=${f.type || "string"} onChange=${(e) => { f.type = e.target.value; touch(); }}>
-                <option value="string">text</option>
-                <option value="boolean">yes / no</option>
-                <option value="number">number</option>
-              </select>
-              <button class="danger tiny" onClick=${() => { node.fields.splice(i, 1); touch(); }}>✕</button>
+              <input type="text" placeholder="e.g. Which pharmacy do you use?" value=${f.question || ""}
+                onChange=${(e) => edit(() => { f.question = e.target.value; }, `q${i}.question`)}
+                onBlur=${() => {
+                  // convenience: derive a storage key from the question if none set
+                  if (!f.field && f.question) {
+                    const s = suggestFieldKey(f.question);
+                    if (s) edit(() => { f.field = s; });
+                  }
+                }} />
+              <button class="danger tiny" title="Remove this question"
+                onClick=${() => edit(() => { node.fields.splice(i, 1); })}>✕</button>
             </div>
+            <div class="smalllbl">saved as</div>
+            <div class="row"><input type="text" placeholder="e.g. pharmacy" value=${f.field || ""}
+              onChange=${(e) => edit(() => { f.field = e.target.value; }, `q${i}.field`)}
+              onBlur=${(e) => { const n = normalizeFieldKey(e.target.value); if (n !== f.field) edit(() => { f.field = n; }, `q${i}.field`); }} /></div>
           </div>`)}
-        <button class="tiny" onClick=${() => { (node.fields = node.fields || []).push({ question: "", field: "", required: false }); touch(); }}>+ Add question</button>
+        <button class="tiny" onClick=${() => edit(() => { (node.fields = node.fields || []).push({ question: "", field: "", required: false }); })}>+ Add question</button>
+        <span class="hint">Write each question once — it's spoken exactly as written. There's no separate prompt to repeat it in.</span>
       </div>
       <div class="field">
         <label>Next step <span class="hint inline">(after all answers collected)</span></label>
@@ -1351,42 +1979,69 @@ function Props({ flow, nodeId, nodeIds, markDirty, setSelected, showToast, posRe
         <span class="hint">What the assistant should say or do here. Supports <code>{CLINIC_NAME}</code> and <code>{ASSISTANT_NAME}</code>.</span>
       </div>`}
 
-    ${node.dynamic && html`
-      <div class="field">
-        <div class="note plain">This step has a <strong>dynamic</strong> block
-          (<code>${node.dynamic.var}</code> from <code>${node.dynamic.source}</code>). Preserved exactly as-is when you save.</div>
-      </div>`}
+    <${Advanced}>
+      ${vt === "collect-custom" && html`
+        <div class="field">
+          <label>Intro line <span class="hint inline">(optional — spoken once, before the questions)</span></label>
+          <textarea rows=${2} value=${node.prompt || ""}
+            onChange=${(e) => {
+              const v = e.target.value;
+              edit(() => { if (v.trim()) node.prompt = v; else delete node.prompt; }, "intro");
+            }}></textarea>
+          <span class="hint">Leave blank for the built-in intro. Don't repeat a question here — each question above is already asked on the call.</span>
+        </div>
+        ${(node.fields || []).length > 0 && html`
+          <div class="field">
+            <label>Answer requirements</label>
+            ${(node.fields || []).map((f, i) => html`
+              <div class="row" key=${i} style=${{ marginBottom: "7px" }}>
+                <span style=${{ flex: 1, minWidth: 0, fontSize: "12.5px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: "ui-monospace,SFMono-Regular,Menlo,monospace" }}>
+                  ${f.field || `question ${i + 1}`}</span>
+                <label class="chk"><input type="checkbox" checked=${!!f.required}
+                  onChange=${(e) => edit(() => { f.required = e.target.checked; })} /> required</label>
+                <select value=${f.type || "string"} onChange=${(e) => edit(() => { f.type = e.target.value; })}>
+                  <option value="string">text</option>
+                  <option value="boolean">yes / no</option>
+                  <option value="number">number</option>
+                </select>
+              </div>`)}
+          </div>`}`}
 
-    ${hasFns && html`
-      <div class="section-sep"></div>
+      ${node.dynamic && html`
+        <div class="field">
+          <div class="note plain">This step has a <strong>dynamic</strong> block
+            (<code>${node.dynamic.var}</code> from <code>${node.dynamic.source}</code>). Preserved exactly as-is when you save.</div>
+        </div>`}
+
+      ${hasFns && html`
+        <div class="field">
+          <label>Actions <span class="hint inline">(things the assistant can do at this step)</span></label>
+          ${allFns.length === 0
+            ? html`<span class="hint">No actions are defined in this flow yet.</span>`
+            : html`<div class="fnlist">
+                ${allFns.map((fn) => html`
+                  <label class="chk" key=${fn}>
+                    <input type="checkbox" checked=${(node.functions || []).includes(fn)}
+                           onChange=${() => toggleFn(fn)} /> ${humanize(fn)}
+                  </label>`)}
+              </div>`}
+        </div>
+        ${routesViaFns && html`
+          <div class="note" style=${{ margin: "4px 0 14px" }}>
+            This step's routing is set by its actions (advanced).
+          </div>`}`}
+
       <div class="field">
-        <label>Available actions <span class="hint inline">(functions the assistant can call here)</span></label>
-        ${allFns.length === 0
-          ? html`<span class="hint">No functions are defined in this flow yet.</span>`
-          : html`<div class="fnlist">
-              ${allFns.map((fn) => html`
-                <label class="chk" key=${fn}>
-                  <input type="checkbox" checked=${(node.functions || []).includes(fn)}
-                         onChange=${() => toggleFn(fn)} /> ${fn}
-                </label>`)}
-            </div>`}
+        <label class="chk">
+          <input type="checkbox" checked=${node.context === "reset"}
+                 onChange=${(e) => { e.target.checked ? setField("context", "reset") : delField("context"); }} />
+          Reset conversation context when entering this step
+        </label>
       </div>
-      ${routesViaFns && html`
-        <div class="note" style=${{ marginTop: "4px" }}>
-          Routing for this step is defined by its functions (advanced) — not editable here yet.
-        </div>`}`}
-
-    <div class="section-sep"></div>
-    <div class="field">
-      <label class="chk">
-        <input type="checkbox" checked=${node.context === "reset"}
-               onChange=${(e) => { e.target.checked ? setField("context", "reset") : delField("context"); }} />
-        Reset conversation context when entering this step
-      </label>
-    </div>
+    <//>
 
     <div class="field" style=${{ marginTop: "22px" }}>
-      <button class="danger" onClick=${deleteNode}>Delete this step</button>
+      <button class="danger" onClick=${() => requestDelete(nodeId)}>Delete this step</button>
     </div>`;
 }
 
