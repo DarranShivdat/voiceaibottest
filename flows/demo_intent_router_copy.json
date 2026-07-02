@@ -1,0 +1,361 @@
+{
+  "name": "Demo — intent router + custom question",
+  "initial_node": "intent_router",
+  "persona": "You are {ASSISTANT_NAME}, a warm, efficient front-desk scheduling assistant for {CLINIC_NAME}. You are on a phone call. Speak naturally and keep every reply to one or two short sentences. Use brief backchannels like 'Got it' or 'Thanks'. Collect information one or two items at a time — never read a long list or interrogate. Confirm important details (date of birth, appointment time) by reading them back. Never re-ask something the caller already told you. Never invent patient records, prices, appointment times, or confirmation numbers — only use what your tools return. If the caller asks for something outside scheduling an initial exam, hand off to a human. Never speak stage directions, asides, or descriptions of your own actions. Never say things like 'listening' or wrap text in asterisks. Only speak words meant for the caller to hear.",
+  "functions": {
+    "submit_intake": {
+      "description": "Submit the collected new-patient details. Call ONLY once you have gathered all of: full name, date of birth, phone, email, reason for visit, insurance carrier, and insurance member ID.",
+      "parameters": [
+        {
+          "name": "full_name",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "dob",
+          "type": "string",
+          "description": "Date of birth in YYYY-MM-DD format.",
+          "required": true
+        },
+        {
+          "name": "phone",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "email",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "chief_complaint",
+          "type": "string",
+          "description": "Reason for the visit.",
+          "required": true
+        },
+        {
+          "name": "insurance_carrier",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "member_id",
+          "type": "string",
+          "description": "Insurance member ID.",
+          "required": true
+        }
+      ],
+      "behavior": {
+        "steps": [
+          {
+            "store": {
+              "intake": {
+                "full_name": "$args.full_name",
+                "dob": "$args.dob",
+                "phone": "$args.phone",
+                "email": "$args.email",
+                "chief_complaint": "$args.chief_complaint",
+                "insurance_carrier": "$args.insurance_carrier",
+                "member_id": "$args.member_id"
+              }
+            }
+          },
+          {
+            "tool": {
+              "name": "create_patient",
+              "args": {
+                "full_name": "$args.full_name",
+                "dob": "$args.dob",
+                "phone": "$args.phone",
+                "email": "$args.email",
+                "insurance_carrier": "$args.insurance_carrier",
+                "member_id": "$args.member_id",
+                "chief_complaint": "$args.chief_complaint"
+              },
+              "store_result": "patient"
+            }
+          },
+          {
+            "store": {
+              "patient_name": "$state.patient.name",
+              "registered": true
+            }
+          },
+          {
+            "tool": {
+              "name": "get_cost_estimate",
+              "args": {
+                "carrier": "$args.insurance_carrier",
+                "has_referral": "$state.referral.has_referral"
+              },
+              "store_result": "estimate"
+            }
+          }
+        ],
+        "result": {
+          "registered": true,
+          "estimate_usd": "$state.estimate.estimate_usd"
+        },
+        "goto": "estimate"
+      }
+    },
+    "ready_to_schedule": {
+      "description": "The caller is ready to pick an appointment time after hearing the cost estimate.",
+      "parameters": [],
+      "behavior": {
+        "result": {
+          "ready": true
+        },
+        "goto": {
+          "cond": "slots_available",
+          "then": "scheduling",
+          "else": "no_slots"
+        }
+      }
+    },
+    "get_available_slots": {
+      "description": "List currently available initial-exam appointment times if the caller wants more options.",
+      "parameters": [],
+      "behavior": {
+        "result": {
+          "slots": "@slots(5)"
+        },
+        "goto": null
+      }
+    },
+    "book_appointment": {
+      "description": "Book the initial-exam slot the caller chose, by its slot_id.",
+      "parameters": [
+        {
+          "name": "slot_id",
+          "type": "string",
+          "description": "The slot_id of the chosen time, e.g. 'slot-3'.",
+          "required": true
+        }
+      ],
+      "behavior": {
+        "guards": [
+          {
+            "when": {
+              "state_falsy": "patient"
+            },
+            "result": {
+              "success": false,
+              "reason": "not_verified"
+            },
+            "goto": "handoff"
+          }
+        ],
+        "steps": [
+          {
+            "tool": {
+              "name": "book_appointment",
+              "args": {
+                "patient_id": "$state.patient.patient_id",
+                "slot_id": "$args.slot_id"
+              }
+            }
+          }
+        ],
+        "routes": [
+          {
+            "when": "result_success",
+            "store": {
+              "booking": "$result",
+              "appointment": {
+                "when": "$result.when",
+                "provider": "$result.provider"
+              },
+              "outcome": "booked"
+            },
+            "steps": [
+              {
+                "tool": {
+                  "name": "send_confirmation",
+                  "args": {
+                    "patient": "$state.patient",
+                    "appointment": "$state.booking"
+                  }
+                }
+              }
+            ],
+            "result": "$state.booking",
+            "goto": "confirm"
+          },
+          {
+            "when": "result_failure",
+            "result": "$result",
+            "goto": {
+              "cond": "slots_available",
+              "then": "scheduling",
+              "else": "no_slots"
+            }
+          }
+        ]
+      }
+    },
+    "take_callback_number": {
+      "description": "Record a callback number when no appointment slots are available.",
+      "parameters": [
+        {
+          "name": "phone",
+          "type": "string",
+          "description": "Best callback phone number.",
+          "required": true
+        }
+      ],
+      "behavior": {
+        "steps": [
+          {
+            "store": {
+              "callback_number": "$args.phone",
+              "outcome": "callback"
+            }
+          },
+          {
+            "log": "[CALLBACK] scheduling team will call back {args.phone}"
+          }
+        ],
+        "result": {
+          "callback": "$args.phone"
+        },
+        "goto": "callback"
+      }
+    },
+    "caller_declines": {
+      "description": "The caller does not want to provide required information or continue with intake.",
+      "parameters": [],
+      "behavior": {
+        "steps": [
+          {
+            "store": {
+              "outcome": "handoff"
+            }
+          }
+        ],
+        "result": {
+          "declined": true
+        },
+        "goto": "handoff"
+      }
+    },
+    "human_handoff": {
+      "description": "Hand off to a human teammate. Use for any request outside scheduling an initial exam, or whenever the caller asks for a person.",
+      "parameters": [],
+      "behavior": {
+        "steps": [
+          {
+            "store": {
+              "outcome": "handoff"
+            }
+          }
+        ],
+        "result": {
+          "handed_off": true
+        },
+        "goto": "handoff"
+      }
+    }
+  },
+  "nodes": {
+    "intent_router": {
+      "type": "categorize",
+      "context": "reset",
+      "prompt": "Thanks for calling {CLINIC_NAME}. How can I help you today?",
+      "buckets": [
+        {
+          "name": "schedule_new",
+          "description": "wants to book a new appointment or schedule an initial exam",
+          "next": "collect_pharmacy"
+        },
+        {
+          "name": "reschedule",
+          "description": "change or move an existing appointment",
+          "next": "handoff"
+        },
+        {
+          "name": "cancel",
+          "description": "cancel an existing appointment",
+          "next": "handoff"
+        },
+        {
+          "name": "billing",
+          "description": "billing, insurance, or cost questions",
+          "next": "handoff"
+        }
+      ],
+      "fallback": "handoff"
+    },
+    "collect_pharmacy": {
+      "type": "collect",
+      "prompt": "Great, let's get you scheduled. First, one quick question:",
+      "fields": [
+        {
+          "question": "What's your preferred pharmacy?",
+          "field": "pharmacy",
+          "required": false
+        }
+      ],
+      "next": "intake",
+      "functions": [
+        "human_handoff"
+      ]
+    },
+    "intake": {
+      "type": "collect",
+      "instructions": "Collect the new patient's details, ONE or TWO items at a time, with brief acknowledgements — never list everything at once. You need: full name, date of birth, phone number, email, the reason for their visit, and their insurance carrier plus member ID. Read the date of birth back to confirm it. Do not re-ask anything already provided earlier in the call. When you have ALL of these, call submit_intake. If the caller refuses to provide needed info, call caller_declines.",
+      "functions": [
+        "submit_intake",
+        "caller_declines",
+        "human_handoff"
+      ]
+    },
+    "estimate": {
+      "type": "say",
+      "instructions": "Let the caller know that with {estimate.carrier || \"your plan\"}, {referral.has_referral ? \"since you have a referral on file\" : \"since there's no referral on file\"}, the initial exam is typically around ${estimate.estimate_usd} out of pocket. Make it clear this is just an estimate, not a final or verified amount. Then ask if they'd like to go ahead and schedule. When they say yes, call ready_to_schedule.",
+      "functions": [
+        "ready_to_schedule",
+        "human_handoff"
+      ]
+    },
+    "scheduling": {
+      "type": "collect",
+      "dynamic": {
+        "var": "slot_options",
+        "source": "get_available_slots",
+        "limit": 3,
+        "item": "- slot_id {slot_id}: {when} with {provider}",
+        "join": "\n"
+      },
+      "instructions": "Offer {patient.name || \"the caller\"} these open initial-exam times and ask which works best:\n{slot_options}\n\nRead at most three, saying the day and time naturally (never the slot_id). When they choose, call book_appointment with that option's slot_id. If they want other times, call get_available_slots.",
+      "functions": [
+        "book_appointment",
+        "get_available_slots",
+        "human_handoff"
+      ]
+    },
+    "confirm": {
+      "type": "end",
+      "instructions": "The initial exam is booked for {patient.name}: {booking.when} with {booking.provider}. Recap their name and that appointment time back to them, and let them know a confirmation text and email will follow. Thank them warmly and say goodbye. Ask no further questions.",
+      "functions": []
+    },
+    "no_slots": {
+      "type": "collect",
+      "instructions": "There are no open initial-exam slots right now. Apologize briefly and offer to take a callback number so the scheduling team can reach out. If they share a number, call take_callback_number.",
+      "functions": [
+        "take_callback_number",
+        "human_handoff"
+      ]
+    },
+    "callback": {
+      "type": "end",
+      "instructions": "Confirm you've noted their callback number ({callback_number}) and that the scheduling team will reach out soon. Thank them and say goodbye.",
+      "functions": []
+    },
+    "handoff": {
+      "type": "handoff",
+      "instructions": "Let the caller know you'll get someone from the team who can help with that, in a warm and reassuring way. Keep it to one sentence, then say goodbye.",
+      "functions": []
+    }
+  }
+}
