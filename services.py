@@ -65,20 +65,36 @@ def build_llm():
 
 # --- TTS --------------------------------------------------------------------
 
-def _build_single_tts(provider: str):
+def _failover_voice_for(voice_id: str):
+    """The Deepgram failover voice matched to a curated Cartesia voice, if any.
+
+    Returns None (keep Deepgram's built-in default) when the voice isn't in the
+    curated list or has no obvious gender-matched mapping.
+    """
+    for v in config.VOICES:
+        if v["id"] == voice_id:
+            return v.get("failover")
+    return None
+
+
+def _build_single_tts(provider: str, cartesia_voice: str = None, deepgram_voice: str = None):
     if provider == "cartesia":
         return CartesiaTTSService(
             api_key=os.environ["CARTESIA_API_KEY"],
             settings=CartesiaTTSService.Settings(
                 model=config.CARTESIA_MODEL,
-                voice=config.CARTESIA_VOICE,
+                voice=cartesia_voice or config.CARTESIA_VOICE,
             ),
         )
     if provider == "deepgram":
         from pipecat.services.deepgram.tts import DeepgramTTSService
 
         # Reuses the Deepgram key already required for STT — a zero-config fallback.
-        return DeepgramTTSService(api_key=os.environ["DEEPGRAM_API_KEY"])
+        # A matched failover voice keeps the same gender; None keeps the default.
+        kwargs = {"api_key": os.environ["DEEPGRAM_API_KEY"]}
+        if deepgram_voice:
+            kwargs["voice"] = deepgram_voice
+        return DeepgramTTSService(**kwargs)
     if provider == "openai":
         from pipecat.services.openai.tts import OpenAITTSService
 
@@ -88,20 +104,24 @@ def _build_single_tts(provider: str):
     )
 
 
-def build_tts():
+def build_tts(voice_id: str = None):
     """Return the TTS processor for the pipeline.
 
-    If a (different) fallback provider is configured, returns a ServiceSwitcher
-    that auto-fails-over from primary -> fallback on a non-fatal error.
+    `voice_id` (from the active flow, if it pins one) selects the Cartesia voice;
+    it falls back to config.CARTESIA_VOICE when absent. If a (different) fallback
+    provider is configured, returns a ServiceSwitcher that auto-fails-over from
+    primary -> fallback on a non-fatal error.
     """
-    primary = _build_single_tts(config.TTS_PROVIDER)
+    cartesia_voice = voice_id or config.CARTESIA_VOICE
+    primary = _build_single_tts(config.TTS_PROVIDER, cartesia_voice=cartesia_voice)
 
     fallback = config.TTS_FALLBACK_PROVIDER
     if not fallback or fallback == config.TTS_PROVIDER:
-        logger.info(f"TTS: {config.TTS_PROVIDER} (no fallback configured)")
+        logger.info(f"TTS: {config.TTS_PROVIDER} voice={cartesia_voice} (no fallback configured)")
         return primary
 
-    backup = _build_single_tts(fallback)
+    deepgram_voice = _failover_voice_for(cartesia_voice) if fallback == "deepgram" else None
+    backup = _build_single_tts(fallback, deepgram_voice=deepgram_voice)
     switcher = ServiceSwitcher(
         services=[primary, backup],
         strategy_type=ServiceSwitcherStrategyFailover,
@@ -111,5 +131,8 @@ def build_tts():
     async def _on_service_switched(strategy, service):  # noqa: ANN001
         logger.warning(f"[TTS FAILOVER] now using {service}")
 
-    logger.info(f"TTS: {config.TTS_PROVIDER} (auto-failover -> {fallback})")
+    logger.info(
+        f"TTS: {config.TTS_PROVIDER} voice={cartesia_voice} "
+        f"(auto-failover -> {fallback}{f' voice={deepgram_voice}' if deepgram_voice else ''})"
+    )
     return switcher

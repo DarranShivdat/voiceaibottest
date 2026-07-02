@@ -133,7 +133,7 @@
             "or_null": "$args.referring_provider"
           }
         },
-        "goto": "ask_pharmacy"
+        "goto": "intake"
       }
     },
     "submit_intake": {
@@ -417,23 +417,6 @@
         "human_handoff"
       ]
     },
-    "intake": {
-      "type": "collect",
-      "instructions": "Collect the new patient's details, ONE or TWO items at a time, with brief acknowledgements — never list everything at once. You need: full name, date of birth, phone number, email, the reason for their visit, and their insurance carrier plus member ID. Read the date of birth back to confirm it. Do not re-ask anything already provided earlier in the call. When you have ALL of these, call submit_intake. If the caller refuses to provide needed info, call caller_declines.",
-      "functions": [
-        "submit_intake",
-        "caller_declines",
-        "human_handoff"
-      ]
-    },
-    "estimate": {
-      "type": "say",
-      "instructions": "Let the caller know that with {estimate.carrier || \"your plan\"}, {referral.has_referral ? \"since you have a referral on file\" : \"since there's no referral on file\"}, the initial exam is typically around ${estimate.estimate_usd} out of pocket. Make it clear this is just an estimate, not a final or verified amount. Then ask if they'd like to go ahead and schedule. When they say yes, call ready_to_schedule.",
-      "functions": [
-        "ready_to_schedule",
-        "human_handoff"
-      ]
-    },
     "scheduling": {
       "type": "collect",
       "dynamic": {
@@ -472,18 +455,7 @@
       "type": "handoff",
       "instructions": "Let the caller know you'll get someone from the team who can help with that, in a warm and reassuring way. Keep it to one sentence, then say goodbye.",
       "functions": []
-    },
-    "ask_pharmacy": {
-      "type": "collect",
-      "fields": [
-        {
-          "question": "what pharmacy do you use?",
-          "field": "pharmacy",
-          "required": false
-        }
-      ],
-      "next": "intake",
-      "functions": []
     }
-  }
+  },
+  "voice_id": "6f84f4b8-58a2-430c-8c79-688dad597532"
 }

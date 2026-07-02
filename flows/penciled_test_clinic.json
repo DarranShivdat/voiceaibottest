@@ -474,5 +474,6 @@
       "instructions": "Let the caller know you'll get someone from the team who can help with that, in a warm and reassuring way. Keep it to one sentence, then say goodbye.",
       "functions": []
     }
-  }
+  },
+  "voice_id": "6f84f4b8-58a2-430c-8c79-688dad597532"
 }

@@ -54,6 +54,50 @@ CARTESIA_MODEL = os.getenv("CARTESIA_MODEL", "sonic-3.5")
 # "British Reading Lady" — a known-valid Cartesia voice id.
 CARTESIA_VOICE = os.getenv("CARTESIA_VOICE", "71a7ad14-091c-4e8e-a314-022ece01c121")
 
+# --- Curated TTS voices (one source of truth) -------------------------------
+# A small, hand-picked set of Cartesia voices that suit a clinic front desk:
+# mixed gender, all professional/warm (no accent-gimmick picks). A flow may pin
+# one via a top-level "voice_id"; absent that, CARTESIA_VOICE (the default) is
+# used. The builder's voice picker fetches this list via GET /api/voices, and
+# /api/voice-preview validates against it. `failover` is the matching Deepgram
+# voice used when TTS auto-fails-over — chosen to keep the same gender where the
+# mapping is obvious (None keeps Deepgram's built-in default).
+VOICES = [
+    {
+        "id": "71a7ad14-091c-4e8e-a314-022ece01c121",
+        "name": "British Reading Lady",
+        "vibe": "warm",
+        "failover": "aura-2-thalia-en",
+    },
+    {
+        "id": "694f9389-aac1-45b6-b726-9d9369183238",
+        "name": "Sarah",
+        "vibe": "calm",
+        "failover": "aura-2-thalia-en",
+    },
+    {
+        "id": "6f84f4b8-58a2-430c-8c79-688dad597532",
+        "name": "Brooke",
+        "vibe": "friendly",
+        "failover": "aura-2-andromeda-en",
+    },
+    {
+        "id": "a167e0f3-df7e-4d52-a9c3-f949145efdab",
+        "name": "Customer Support Man",
+        "vibe": "reassuring",
+        "failover": "aura-2-apollo-en",
+    },
+    {
+        "id": "63ff761f-c1e8-414b-b969-d1833d1c870c",
+        "name": "Confident British Man",
+        "vibe": "assured",
+        "failover": "aura-2-apollo-en",
+    },
+]
+
+# The default voice (used when a flow does not pin its own voice_id).
+DEFAULT_VOICE_ID = CARTESIA_VOICE
+
 # --- Stretch: telephony (Twilio / Telnyx websocket transport) ---------------
 # Off by default so it never affects the browser (SmallWebRTC) demo. When on,
 # the same bot can also answer an inbound phone websocket via the Pipecat runner.

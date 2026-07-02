@@ -35,7 +35,7 @@ from pipecat.turns.user_turn_strategies import UserTurnStrategies
 from pipecat.workers.runner import WorkerRunner
 
 import config
-from flow import create_greeting_node
+import flow
 from observers import TranscriptObserver
 from services import build_llm, build_stt, build_tts
 
@@ -74,15 +74,21 @@ def build_transport_params() -> dict:
 
 
 async def run_bot(transport: BaseTransport, runner_args: RunnerArguments) -> None:
+    # Snapshot the active flow ONCE per session: a runtime swap (POST
+    # /api/active-flow) only affects the NEXT session, never this one, and voice
+    # + greeting are guaranteed to come from the same flow.
+    active_flow = flow.get_active_engine()
+
     logger.info(
-        f"Starting clinic scheduler | STT={config.STT_PROVIDER} "
+        f"Starting clinic scheduler | flow={flow.get_active_flow_name()} "
+        f"STT={config.STT_PROVIDER} "
         f"LLM={config.LLM_PROVIDER}:{config.ANTHROPIC_MODEL if config.LLM_PROVIDER == 'anthropic' else ''} "
         f"TTS={config.TTS_PROVIDER}"
     )
 
     stt = build_stt()
     llm = build_llm()
-    tts = build_tts()  # may be a ServiceSwitcher (auto-failover)
+    tts = build_tts(voice_id=active_flow.voice_id)  # may be a ServiceSwitcher (auto-failover)
 
     # Universal, provider-agnostic context (v1.x) — lets us swap LLMs freely.
     context = LLMContext()
@@ -151,7 +157,7 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments) -> Non
     async def on_client_connected(transport, client):  # noqa: ANN001
         logger.info("Client connected — starting scheduling flow.")
         transcript.start_session()
-        await flow_manager.initialize(create_greeting_node())
+        await flow_manager.initialize(active_flow.build_initial_node())
 
     @transport.event_handler("on_client_disconnected")
     async def on_client_disconnected(transport, client):  # noqa: ANN001
@@ -585,6 +591,97 @@ def _register_components_route() -> None:
     logger.info("Component library available at /api/components")
 
 
+# --- Runtime controls: active-flow hot-swap + voice picker/preview -----------
+# Additive demo-view plumbing. These read/mutate ONLY the module-level active
+# flow (via flow.py) and the curated voice list (config.VOICES); they do not
+# touch the pipeline, engine parsing, or any existing route. Swapping the active
+# flow affects only the NEXT session — in-progress calls are unaffected.
+def _register_runtime_route() -> None:
+    from fastapi import Request
+    from fastapi.responses import JSONResponse, Response
+
+    from pipecat.runner.run import app
+
+    @app.get("/api/active-flow")
+    async def get_active_flow():  # noqa: ANN202
+        return JSONResponse({"name": flow.get_active_flow_name()})
+
+    @app.post("/api/active-flow")
+    async def set_active_flow(request: Request):  # noqa: ANN202
+        try:
+            body = json.loads((await request.body()).decode("utf-8") or "{}")
+        except Exception as exc:  # noqa: BLE001
+            return JSONResponse({"error": f"invalid JSON: {exc}"}, status_code=400)
+        name = (body.get("flow") or "").strip()
+        if not name:
+            return JSONResponse({"error": "missing 'flow'"}, status_code=400)
+        # Same name/traversal validation as /api/flows.
+        path = _safe_flow_path(name)
+        if path is None:
+            return JSONResponse({"error": "invalid flow name"}, status_code=400)
+        if not path.is_file():
+            return JSONResponse({"error": "not found"}, status_code=404)
+        try:
+            # Loads through FlowEngine; on any parse/build error the previous
+            # flow stays active (swap_active_flow raises before swapping).
+            active = flow.swap_active_flow(str(path), path.stem)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(f"/api/active-flow: refused swap to '{name}': {exc}")
+            return JSONResponse(
+                {"error": f"flow failed to load: {exc}", "active": flow.get_active_flow_name()},
+                status_code=400,
+            )
+        return JSONResponse({"ok": True, "active": active})
+
+    @app.get("/api/voices")
+    async def list_voices():  # noqa: ANN202
+        return JSONResponse({"voices": config.VOICES, "default": config.DEFAULT_VOICE_ID})
+
+    @app.post("/api/voice-preview")
+    async def voice_preview(request: Request):  # noqa: ANN202
+        import os
+
+        try:
+            body = json.loads((await request.body()).decode("utf-8") or "{}")
+        except Exception as exc:  # noqa: BLE001
+            return JSONResponse({"error": f"invalid JSON: {exc}"}, status_code=400)
+        voice_id = (body.get("voice_id") or "").strip()
+        if not any(v["id"] == voice_id for v in config.VOICES):
+            return JSONResponse({"error": "unknown voice_id"}, status_code=400)
+        text = (body.get("text") or "").strip() or "Hi, thanks for calling. How can I help you today?"
+        text = text[:200]  # cap preview length
+
+        key = os.getenv("CARTESIA_API_KEY")
+        if not key:
+            return JSONResponse({"error": "CARTESIA_API_KEY not configured"}, status_code=503)
+
+        import httpx
+
+        payload = {
+            "model_id": config.CARTESIA_MODEL,
+            "transcript": text,
+            "voice": {"mode": "id", "id": voice_id},
+            "output_format": {"container": "wav", "encoding": "pcm_s16le", "sample_rate": 44100},
+        }
+        headers = {"Cartesia-Version": "2026-03-01", "X-API-Key": key}
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as http:
+                resp = await http.post(
+                    "https://api.cartesia.ai/tts/bytes", json=payload, headers=headers
+                )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(f"/api/voice-preview: synth request failed: {exc}")
+            return JSONResponse({"error": f"synth failed: {exc}"}, status_code=502)
+        if resp.status_code != 200:
+            logger.warning(f"/api/voice-preview: Cartesia HTTP {resp.status_code}: {resp.text[:200]}")
+            return JSONResponse(
+                {"error": f"Cartesia returned HTTP {resp.status_code}"}, status_code=502
+            )
+        return Response(content=resp.content, media_type="audio/wav")
+
+    logger.info("Runtime controls available at /api/active-flow, /api/voices, /api/voice-preview")
+
+
 if __name__ == "__main__":
     import asyncio
 
@@ -600,6 +697,7 @@ if __name__ == "__main__":
     _register_data_route()
     _register_builder_route()
     _register_components_route()
+    _register_runtime_route()
 
     from pipecat.runner.run import main
 

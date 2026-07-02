@@ -76,6 +76,72 @@
   .filepill.unsaved { background:#fff7ed; border-color:#fed7aa; color:#c2620c; }
   .filepill.unsaved .dot { background:#f59e0b; }
 
+  /* ---- Play / Stop (Scratch-style) ---- */
+  .playgroup { display:flex; align-items:center; gap:8px; }
+  .playbtn {
+    font-weight:750; color:#fff; border:none;
+    background:linear-gradient(135deg,#16a34a,#15803d); box-shadow:0 2px 6px rgba(22,163,74,.35);
+  }
+  .playbtn:hover { background:linear-gradient(135deg,#15a049,#146c35); border:none; }
+  .playbtn.live { background:linear-gradient(135deg,#ef4444,#dc2626); box-shadow:0 2px 6px rgba(220,38,38,.35); }
+  .playbtn.live:hover { background:linear-gradient(135deg,#e63b3b,#c92020); }
+  .playbtn.edited {
+    background:linear-gradient(135deg,#f59e0b,#d97706); box-shadow:0 2px 6px rgba(217,119,6,.35);
+  }
+  .playbtn.edited:hover { background:linear-gradient(135deg,#ea9408,#c76d05); }
+  .play-edited {
+    font-size:11px; font-weight:650; color:#b45309; max-width:150px; line-height:1.25;
+  }
+
+  /* ---- docked call panel ---- */
+  .callhead { display:flex; align-items:center; justify-content:space-between; gap:8px; margin:0 0 12px; }
+  .callhead .calling { font-size:14px; font-weight:750; color:var(--ink); }
+  .callhead .callfile {
+    font-size:11px; color:var(--muted); font-family:ui-monospace,SFMono-Regular,Menlo,monospace; margin-top:1px;
+  }
+  .callhead-main { display:flex; align-items:center; gap:9px; min-width:0; }
+  .live-dot {
+    width:9px; height:9px; border-radius:50%; background:#16a34a; flex-shrink:0;
+    box-shadow:0 0 0 0 rgba(22,163,74,.5); animation:livePulse 1.6s infinite;
+  }
+  @keyframes livePulse {
+    0% { box-shadow:0 0 0 0 rgba(22,163,74,.5); }
+    70% { box-shadow:0 0 0 7px rgba(22,163,74,0); }
+    100% { box-shadow:0 0 0 0 rgba(22,163,74,0); }
+  }
+  .calliframe {
+    width:100%; height:calc(100vh - 150px); border:1px solid var(--line);
+    border-radius:14px; background:#0b1020; display:block;
+  }
+  .callmini {
+    display:flex; align-items:center; gap:6px; flex-wrap:wrap; font-size:11.5px; color:var(--muted);
+    background:var(--brand-50); border:1px solid var(--brand-100); border-radius:9px;
+    padding:7px 10px; margin:0 0 14px;
+  }
+  .callmini button.linklike {
+    border:none; background:none; padding:0; color:var(--brand-700); font-weight:700; font-size:11.5px; gap:3px;
+  }
+  .callmini button.linklike:hover { background:none; text-decoration:underline; }
+
+  /* ---- voice picker (Flow settings) ---- */
+  .voicelist { display:flex; flex-direction:column; gap:8px; }
+  .voice-opt {
+    display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--line);
+    border-radius:10px; background:#fff; cursor:pointer; transition:border-color .12s, background .12s;
+  }
+  .voice-opt:hover { border-color:var(--brand-100); background:var(--brand-50); }
+  .voice-opt.sel { border-color:var(--brand); background:var(--brand-50); box-shadow:0 0 0 3px var(--brand-50); }
+  .voice-opt input[type=radio] { margin:0; flex-shrink:0; accent-color:var(--brand); }
+  .voice-opt .vo-body { flex:1; min-width:0; }
+  .voice-opt .vo-name { font-size:13.5px; font-weight:650; color:var(--ink); }
+  .voice-opt .vo-vibe { font-size:11.5px; color:var(--muted); font-weight:500; margin-top:1px; text-transform:capitalize; }
+  .voice-opt .vo-play {
+    flex-shrink:0; width:30px; height:30px; padding:0; border-radius:50%; justify-content:center;
+    color:var(--brand-700); border-color:var(--brand-100);
+  }
+  .voice-opt .vo-play:hover { background:var(--brand); border-color:var(--brand); color:#fff; }
+  .voice-opt .vo-play.busy { opacity:.5; }
+
   .divider { width:1px; height:28px; background:var(--line); margin:0 2px; }
 
   /* ---- inputs & buttons ---- */
@@ -150,6 +216,8 @@
     width:360px; background:var(--panel); border-left:1px solid var(--line); padding:18px 18px 40px;
     overflow:auto; flex-shrink:0;
   }
+  /* Call mode: give the docked phone room so it isn't skinny. */
+  .panel.callmode { width:460px; }
   .panel-h { display:flex; align-items:center; gap:8px; margin:0 0 16px; }
   .panel-h h2 { font-size:15px; font-weight:700; margin:0; color:var(--ink); }
   .panel .empty {
@@ -472,6 +540,11 @@ import ReactFlow, {
 
 const html = htm.bind(React.createElement);
 
+// Injected server-side (same replacement as the /builder page text). Used for
+// the voice-preview sentence.
+const CLINIC_NAME = "__CLINIC_NAME__";
+const ASSISTANT_NAME = "__ASSISTANT_NAME__";
+
 /* ---- inline SVG icons (no emoji → no tofu boxes on any platform) ---------- */
 function Icon({ name, size }) {
   const a = {
@@ -511,6 +584,10 @@ function Icon({ name, size }) {
       return html`<svg ...${a}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
     case "box": // component / package
       return html`<svg ...${a}><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>`;
+    case "play": // filled triangle
+      return html`<svg ...${a} fill="currentColor" stroke="none"><path d="M6 4l14 8-14 8z"/></svg>`;
+    case "stop": // filled square
+      return html`<svg ...${a} fill="currentColor" stroke="none"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>`;
     default:
       return null;
   }
@@ -1447,6 +1524,12 @@ function App() {
   const [loadedName, setLoadedName] = useState("");   // file stem currently loaded/saved
   const [dirty, setDirty] = useState(false);          // unsaved changes since last load/save
   const [viewKey, setViewKey] = useState(0);          // bump to remount React Flow → fresh fitView
+
+  // --- Play / live-call mode -------------------------------------------------
+  const [callLive, setCallLive] = useState(false);    // a call session is docked in the right panel
+  const [activeInfo, setActiveInfo] = useState(null);  // {file, title} from GET /api/active-flow
+  const [playBusy, setPlayBusy] = useState(false);     // save + swap in flight
+  const pendingPlay = useRef(false);                   // continue Play after a Save-as completes
   const [toast, setToast] = useState(null);
 
   // modal state: only one open at a time
@@ -1994,6 +2077,76 @@ function App() {
     else setSavePrompt({ initial: "", copy: false });
   }, [loadedName, doSave]);
 
+  /* ---- Play: save (what you hear is always what you see), set active, dock the
+     phone. `name` is the file to make live — always a just-saved file. ---- */
+  const activatePlay = useCallback(async (name) => {
+    setPlayBusy(true);
+    try {
+      const res = await fetch("/api/active-flow", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ flow: name }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) { showToast(`Couldn't go live: ${d.error || res.statusText}`, true); return; }
+      // Read back the authoritative active flow name; resolve a display title.
+      let file = name, title = (flowRef.current && flowRef.current.name) || name;
+      try {
+        const cur = await (await fetch("/api/active-flow")).json();
+        if (cur && cur.name) {
+          file = cur.name;
+          const match = (flowList || []).find((f) => f.name === cur.name);
+          if (match && match.title) title = match.title;
+        }
+      } catch (_) { /* header falls back to what we posted */ }
+      setActiveInfo({ file, title });
+      setSelected(null);
+      setShowFlowSettings(false);
+      setSelectedEdge(null);
+      setCallLive(true);
+      showToast(`Live: ${title}`);
+    } finally {
+      setPlayBusy(false);
+    }
+  }, [showToast, flowList]);
+
+  const onPlay = useCallback(async () => {
+    const flow = flowRef.current;
+    if (!flow) return;
+    if (!loadedName) {
+      // Never-saved flow: Save-as first, then continue into Play on success.
+      pendingPlay.current = true;
+      setSavePrompt({ initial: "", copy: false });
+      return;
+    }
+    if (dirty) {
+      const ok = await doSave(loadedName);
+      if (!ok) return; // save failed → don't go live on a stale flow
+    }
+    await activatePlay(loadedName);
+  }, [loadedName, dirty, doSave, activatePlay]);
+
+  const onStop = useCallback(() => {
+    // Unmounting the phone iframe tears down its WebRTC call; the panel returns
+    // to the editor. The active flow on the server is left as-is (harmless).
+    setCallLive(false);
+    setActiveInfo(null);
+  }, []);
+
+  // Save-as submit wrapper: after a successful save, continue into Play if Play
+  // was what triggered the prompt (never-saved flow + ▶).
+  const onSaveModalSubmit = useCallback(async (name) => {
+    const ok = await doSave(name);
+    if (ok && pendingPlay.current) {
+      pendingPlay.current = false;
+      const clean = (name || "").trim().replace(/\.json$/i, "");
+      await activatePlay(clean);
+    }
+    return ok;
+  }, [doSave, activatePlay]);
+
+  const closeSavePrompt = useCallback(() => { pendingPlay.current = false; setSavePrompt(null); }, []);
+
   /* ---- export (download) without saving ---- */
   const exportJson = useCallback(() => {
     const flow = flowRef.current;
@@ -2297,6 +2450,24 @@ function App() {
                   onClick=${() => setView("outline")}>Outline</button>
         </div>
 
+        <div class="divider"></div>
+        ${flow && html`
+          <div class="playgroup">
+            ${callLive && dirty && html`
+              <span class="play-edited">edited since last play — ▶ to hear the latest</span>`}
+            ${!callLive
+              ? html`<button class="playbtn" onClick=${onPlay} disabled=${playBusy}
+                        title="Save, make this the live flow, and open the phone">
+                        <${Icon} name="play" size=${13} /> ${playBusy ? "Starting…" : "Play"}</button>`
+              : html`
+                  ${dirty && html`<button class="playbtn edited" onClick=${onPlay} disabled=${playBusy}
+                        title="Re-save and swap the live flow to the latest">
+                        <${Icon} name="play" size=${13} /> Play latest</button>`}
+                  <button class="playbtn live" onClick=${onStop}
+                        title="End the call and return to editing">
+                        <${Icon} name="stop" size=${13} /> Stop</button>`}
+          </div>`}
+
         <div class="spacer"></div>
 
         ${flow && html`
@@ -2411,15 +2582,25 @@ function App() {
               </div>`}
         </div>
 
-        <!-- properties / flow settings -->
-        <div class="panel">
+        <!-- properties / flow settings / docked call -->
+        <div class=${"panel" + (callLive && !selected && !showFlowSettings ? " callmode" : "")}>
           ${showFlowSettings && flow
-            ? html`<${FlowSettings} flow=${flow} markDirty=${markDirty} pushHistory=${pushHistory} onClose=${() => setShowFlowSettings(false)} />`
+            ? html`<${FlowSettings} flow=${flow} markDirty=${markDirty} pushHistory=${pushHistory}
+                      showToast=${showToast} onClose=${() => setShowFlowSettings(false)} />`
             : (selected && flow && flow.nodes[selected]
-                ? html`<${Props} key=${selected} flow=${flow} nodeId=${selected}
+                ? html`
+                    ${callLive && html`
+                      <div class="callmini">
+                        <span>Call panel hidden —</span>
+                        <button class="linklike" onClick=${() => { setSelected(null); setShowFlowSettings(false); }}>
+                          <${Icon} name="play" size=${11} /> reopen</button>
+                      </div>`}
+                    <${Props} key=${selected} flow=${flow} nodeId=${selected}
                           nodeIds=${nodeIdList} markDirty=${markDirty} pushHistory=${pushHistory}
                           renameNode=${renameNode} requestDelete=${requestDelete}
                           showToast=${showToast} />`
+                : callLive
+                ? html`<${CallPanel} info=${activeInfo} onStop=${onStop} />`
                 : html`<div class="empty">
                     <span class="big"><${Icon} name="cursor" size=${34} /></span>
                     ${flow ? "Click a card to edit what it says, or drag a step in from the left." : "No flow open yet."}
@@ -2430,7 +2611,7 @@ function App() {
       ${showOpen && html`<${OpenModal} flows=${flowList} onPick=${loadFlow} onClose=${() => setShowOpen(false)} />`}
       ${savePrompt && html`<${SaveModal} initial=${savePrompt.initial} copy=${savePrompt.copy}
                             flowName=${flow && flow.name}
-                            onSave=${doSave} onClose=${() => setSavePrompt(null)} />`}
+                            onSave=${onSaveModalSubmit} onClose=${closeSavePrompt} />`}
       ${showNewComponent && html`<${ComponentModal}
                             onSave=${async (v) => { if (await saveComponent(v)) setShowNewComponent(false); }}
                             onClose=${() => setShowNewComponent(false)} />`}
@@ -2444,6 +2625,28 @@ function App() {
       ${toast && html`<div class=${"toast" + (toast.err ? " err" : "")}>
         <span class="toast-ic">${toast.err ? "!" : "✓"}</span>${toast.msg}</div>`}
     </div>`;
+}
+
+/* ---- docked call panel (embeds the existing /phone client, unchanged) ------
+   The right sidebar swaps to this while a flow is live. We DON'T rebuild the
+   call client — just iframe /phone at panel size. `allow="microphone"` is
+   required or getUserMedia is blocked inside the frame. */
+function CallPanel({ info, onStop }) {
+  const title = (info && info.title) || "this flow";
+  const file = info && info.file ? `${info.file}.json` : "";
+  return html`
+    <div class="callhead">
+      <div class="callhead-main">
+        <span class="live-dot"></span>
+        <div>
+          <div class="calling">Calling: ${title}</div>
+          ${file && html`<div class="callfile">${file}</div>`}
+        </div>
+      </div>
+      <button class="playbtn live tiny" onClick=${onStop}><${Icon} name="stop" size=${12} /> Stop</button>
+    </div>
+    <iframe class="calliframe" src="/phone" allow="microphone; autoplay"
+            title="Live call — ${title}"></iframe>`;
 }
 
 /* ---- Open-flow picker modal ----------------------------------------------- */
@@ -2660,10 +2863,66 @@ function ConfirmModal({ title, message, confirmLabel, tone, onConfirm, onCancel 
     </div>`;
 }
 
-/* ---- flow-level settings (persona / name / initial) ----------------------- */
-function FlowSettings({ flow, markDirty, pushHistory, onClose }) {
+/* A fixed, natural voice-preview line — the SAME for every voice so they compare
+   fairly. Tokens are resolved here (never {ASSISTANT_NAME}/{CLINIC_NAME} raw). */
+function previewLine() {
+  const name = String(ASSISTANT_NAME || "").trim() || "Riley";
+  return `Hi, my name is ${name} — how can I help you today?`;
+}
+
+/* ---- flow-level settings (persona / name / initial / voice) --------------- */
+function FlowSettings({ flow, markDirty, pushHistory, showToast, onClose }) {
   const [, force] = useState(0);
   const set = (k, v) => { pushHistory(`flow:${k}`); flow[k] = v; force((n) => n + 1); markDirty(); };
+
+  // --- Voice picker (curated list from GET /api/voices) ---
+  const [voices, setVoices] = useState([]);
+  const [defaultId, setDefaultId] = useState("");
+  const [previewing, setPreviewing] = useState(null); // voice id currently synthesizing
+  useEffect(() => {
+    let live = true;
+    fetch("/api/voices").then((r) => r.json()).then((d) => {
+      if (!live) return;
+      setVoices(d.voices || []);
+      setDefaultId(d.default || "");
+    }).catch(() => {});
+    return () => { live = false; };
+  }, []);
+
+  const pickVoice = (id) => {
+    pushHistory("flow:voice_id");
+    if (id) flow.voice_id = id; else delete flow.voice_id; // "Default" removes the key (additive)
+    force((n) => n + 1);
+    markDirty();
+  };
+
+  const preview = async (id) => {
+    if (previewing) return;
+    setPreviewing(id);
+    try {
+      const res = await fetch("/api/voice-preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ voice_id: id, text: previewLine() }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        showToast && showToast(`Preview unavailable: ${d.error || res.statusText}`, true);
+        return;
+      }
+      const url = URL.createObjectURL(await res.blob());
+      const audio = new Audio(url);
+      audio.onended = audio.onerror = () => URL.revokeObjectURL(url);
+      await audio.play();
+    } catch (e) {
+      showToast && showToast(`Preview failed: ${e.message}`, true);
+    } finally {
+      setPreviewing(null);
+    }
+  };
+
+  const selectedVoice = flow.voice_id || null;
+
   return html`
     <div class="panel-h"><${Icon} name="settings" /><h2>Flow settings</h2></div>
     <div class="field">
@@ -2677,6 +2936,32 @@ function FlowSettings({ flow, markDirty, pushHistory, onClose }) {
               onChange=${(e) => set("initial_node", e.target.value)}>
         ${Object.keys(flow.nodes || {}).map((id) => html`<option key=${id} value=${id}>${prettyStep(id)}</option>`)}
       </select>
+    </div>
+    <div class="field">
+      <label>Voice <span class="hint inline">(how the assistant sounds)</span></label>
+      <span class="hint" style=${{ marginTop: 0, marginBottom: "8px" }}>Press ▶︎ to hear this flow's greeting in each voice.</span>
+      <div class="voicelist">
+        <label class=${"voice-opt" + (!selectedVoice ? " sel" : "")}>
+          <input type="radio" name="voice" checked=${!selectedVoice} onChange=${() => pickVoice(null)} />
+          <div class="vo-body">
+            <div class="vo-name">Default voice</div>
+            <div class="vo-vibe">The clinic's standard voice</div>
+          </div>
+        </label>
+        ${voices.map((v) => html`
+          <label key=${v.id} class=${"voice-opt" + (selectedVoice === v.id ? " sel" : "")}>
+            <input type="radio" name="voice" checked=${selectedVoice === v.id} onChange=${() => pickVoice(v.id)} />
+            <div class="vo-body">
+              <div class="vo-name">${v.name}${v.id === defaultId ? " · default" : ""}</div>
+              <div class="vo-vibe">${v.vibe}</div>
+            </div>
+            <button class=${"vo-play" + (previewing === v.id ? " busy" : "")}
+                    title="Preview this voice"
+                    onClick=${(e) => { e.preventDefault(); preview(v.id); }}
+                    disabled=${!!previewing}>
+              <${Icon} name="play" size=${13} /></button>
+          </label>`)}
+      </div>
     </div>
     <div class="field">
       <label>Persona</label>

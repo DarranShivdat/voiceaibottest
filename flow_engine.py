@@ -92,6 +92,9 @@ class FlowEngine:
         self.functions = self.spec["functions"]
         self.nodes = self.spec["nodes"]
         self.initial_node = self.spec["initial_node"]
+        # Optional per-flow TTS voice (additive; unknown keys are otherwise
+        # ignored). None means "use the configured default voice".
+        self.voice_id = self.spec.get("voice_id")
         self.branding = {
             "CLINIC_NAME": config.CLINIC_NAME,
             "ASSISTANT_NAME": config.ASSISTANT_NAME,

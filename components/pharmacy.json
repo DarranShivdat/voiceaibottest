@@ -1,0 +1,10 @@
+{
+  "name": "Pharmacy",
+  "fields": [
+    {
+      "question": "Which pharmacy do you use?",
+      "field": "pharmacy",
+      "required": false
+    }
+  ]
+}

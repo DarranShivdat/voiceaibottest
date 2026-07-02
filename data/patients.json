@@ -92,5 +92,19 @@
     "chief_complaint": "Leg pain",
     "new_patient": true,
     "registered_at": "2026-07-01T19:37:38"
+  },
+  {
+    "patient_id": "p-009",
+    "name": "Maria Garcia",
+    "dob": "1989-10-03",
+    "phone": "444-444-4444",
+    "email": "maria.garcia@gmail.com",
+    "insurance": {
+      "carrier": "Aetna",
+      "member_id": "1234"
+    },
+    "chief_complaint": "Shoulder pain",
+    "new_patient": true,
+    "registered_at": "2026-07-02T12:41:51"
   }
 ]
