@@ -43,6 +43,16 @@ Before hosting (ngrok or deploy), add at minimum:
 2. Rate limiting on /start and the API routes (N per IP per minute).
 Do NOT share a public URL until at least the token gate is in place.
 
+## Say-steps from OLDER flows may have no draggable way onward
+Builder-created say-steps carry a generated continuation action
+(behavior.goto, null until routed) so their bottom port always drags — that's
+also how a new flow's greeting chains onward. Say/collect steps in older
+hand-written flows only get a draggable port when they expose exactly one
+unconditional action; otherwise the port explains itself when grabbed and the
+step's panel says how to continue the call. Deleting a builder-made say-step
+leaves its (unused) continue_* action behind in the file — harmless to the
+engine, but a cleanup pass could prune unreferenced generated actions.
+
 ## Builder can't edit CONDITIONAL routing (remaining re-wiring gap)
 Plain routing slots — a step's own `next`, a categorize bucket's `next`, or a
 plain-string function behavior.goto — are fully editable on the canvas: re-point

@@ -137,6 +137,11 @@
     background:#e6f7f1; border:1px solid #bfe9db; border-radius:999px; padding:2px 8px;
   }
   .rail-empty { font-size:11.5px; color:var(--muted); padding:2px 2px 6px; line-height:1.45; }
+  .or-sep {
+    display:flex; align-items:center; gap:10px; margin:12px 0 2px;
+    font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--muted);
+  }
+  .or-sep::before, .or-sep::after { content:""; flex:1; height:1px; background:var(--line); }
 
   .canvas { flex:1; min-width:0; position:relative; }
 
@@ -272,6 +277,7 @@
     background:#fff; color:var(--ink); padding:12px 18px; border-radius:12px; font-size:13.5px; font-weight:600;
     box-shadow:var(--shadow-lg); z-index:100; max-width:80vw; border:1px solid var(--line);
     animation:toastIn .22s cubic-bezier(.2,.8,.2,1);
+    pointer-events:none; /* informational only — never swallow a drag underneath */
   }
   @keyframes toastIn { from { opacity:0; transform:translate(-50%,12px); } to { opacity:1; transform:translate(-50%,0); } }
   .toast .toast-ic {
@@ -571,7 +577,7 @@ const CAT_META = {
 // Human-readable label per visual type, shown in the panel badge.
 const TYPE_LABEL = {
   say: "Say", collect: "Gather info", "collect-custom": "Ask questions",
-  branch: "Decision", categorize: "Direct caller",
+  branch: "Decision", categorize: "Decision",
   tool: "Run action", handoff: "Hand to human", end: "End call",
 };
 const TYPE_ICON = {
@@ -584,16 +590,20 @@ const NODE_TYPES = [
   { key: "collect",        label: "Gather info (freeform)" },
   { key: "collect-custom", label: "Ask questions" },
   { key: "branch",         label: "Decision" },
-  { key: "categorize",     label: "Direct caller" },
+  { key: "categorize",     label: "Decision" },
   { key: "tool",           label: "Run an action" },
   { key: "handoff",        label: "Hand to human" },
   { key: "end",            label: "End call" },
 ];
-// Left-rail sections. All existing step types, grouped the way a flow reads:
-// things said, places the call forks, ways it ends.
+// Left-rail sections, grouped the way a flow reads: things said, places the
+// call forks, ways it ends. Freeform "collect" builds identically to "say" in
+// the engine (both are generic instruction steps), so authored Say covers it;
+// "Decision" creates the bucket-based step, the only decision shape whose
+// outcomes exist (and drag) the moment the card lands. Older node types from
+// existing flows still render and edit normally.
 const RAIL = [
-  { title: "Conversation", keys: ["say", "collect", "collect-custom", "tool"] },
-  { title: "Decisions",    keys: ["branch", "categorize"] },
+  { title: "Conversation", keys: ["say", "collect-custom", "tool"] },
+  { title: "Decisions",    keys: ["categorize"] },
   { title: "Endings",      keys: ["handoff", "end"] },
 ];
 // A collect node with a `fields` list is the clinic-defined custom-question variant.
@@ -1240,6 +1250,19 @@ function Outline({ flow, selected, onPick }) {
 }
 
 /* ---- blank flow scaffold for CREATE --------------------------------------- */
+// The minimal continuation action a builder-made say-step carries: exactly the
+// shape the engine already honors (mirrors how the clinic flow's say-steps
+// continue, e.g. ready_to_schedule — a result plus one plain goto; null until
+// routed). It's what makes the step's bottom port a real, draggable way
+// onward, engine untouched.
+function advanceFnDef() {
+  return {
+    description: "Move the call to the next step once you've said this and the caller is ready to continue.",
+    parameters: [],
+    behavior: { result: { ok: true }, goto: null },
+  };
+}
+
 const DEFAULT_PERSONA =
   "You are {ASSISTANT_NAME}, a warm, efficient front-desk scheduling assistant for {CLINIC_NAME}. " +
   "You are on a phone call. Speak naturally and keep every reply to one or two short sentences. " +
@@ -1250,19 +1273,25 @@ function blankFlow() {
     name: "Untitled flow",
     initial_node: "greeting",
     persona: DEFAULT_PERSONA,
-    functions: {},
+    functions: {
+      // the greeting's way onward — its goto starts null and is set by
+      // dragging the card's bottom port
+      continue_greeting: advanceFnDef(),
+    },
     nodes: {
       greeting: {
         type: "say",
         context: "reset",
         instructions: "Warmly greet the caller and introduce yourself.",
-        functions: [],
+        functions: ["continue_greeting"],
       },
     },
   };
 }
 
-// Minimal, engine-valid skeletons for palette-added nodes.
+// Engine-valid skeletons for palette-added nodes. Non-conversational steps
+// land pre-authored (real wording, real outcomes) — conversational ones go
+// through the component chooser instead and never use a blank skeleton.
 function newNodeSkeleton(vtype) {
   switch (vtype) {
     case "collect-custom":
@@ -1277,11 +1306,24 @@ function newNodeSkeleton(vtype) {
         functions: [],
       };
     case "categorize":
-      return { type: "categorize", prompt: "How can I help you today?", buckets: [], fallback: "" };
+      // Two real, renamable outcomes from the start (null next = not routed
+      // yet, which the engine honors) — the ports exist and drag immediately.
+      return {
+        type: "categorize",
+        prompt: "How can I help you today?",
+        buckets: [
+          { name: "first_option", description: "", next: null },
+          { name: "second_option", description: "", next: null },
+        ],
+        fallback: "",
+      };
     case "handoff":
+      return { type: "handoff", instructions: "Let the caller know you'll get someone from the team who can help, then say goodbye warmly.", functions: [] };
     case "end":
-      return { type: vtype, instructions: "", functions: [] };
-    default: // say, collect (fixed), branch, tool
+      return { type: "end", instructions: "Wrap up warmly, thank the caller, and say goodbye.", functions: [] };
+    case "tool":
+      return { type: "tool", instructions: "Do this step's action, then continue the conversation naturally.", functions: [] };
+    default: // say, collect (freeform) — used for legacy types only
       return { type: vtype, instructions: "", functions: [] };
   }
 }
@@ -1298,15 +1340,27 @@ function componentSkeleton(payload) {
   };
 }
 
-// The stem we use as a default id when a node is dropped from the palette.
+// Meaningful default ids for palette-added steps — plain words, not numbers.
 function baseIdFor(vtype) {
-  return vtype === "collect-custom" ? "collect" : vtype;
+  return {
+    categorize: "caller_decision", handoff: "hand_to_human",
+    end: "end_call", tool: "run_action", "collect-custom": "ask",
+  }[vtype] || vtype;
 }
-// Clean, readable default ids: collect_1, say_1, … (the user renames these to
-// something meaningful, e.g. ask_pharmacy, via the Step name field).
-function uniqueId(flow, base) {
-  let i = 1;
-  while (flow.nodes[`${base}_${i}`]) i++;
+// Prefer the bare name; only suffix on a real collision (ask, ask_2, …).
+function uniqueIdBare(flow, base) {
+  const b = base || "step";
+  if (!flow.nodes[b]) return b;
+  let i = 2;
+  while (flow.nodes[`${b}_${i}`]) i++;
+  return `${b}_${i}`;
+}
+// Same policy for generated function names (continue_greeting, …).
+function uniqueFnName(flow, base) {
+  const fns = flow.functions || (flow.functions = {});
+  if (!fns[base]) return base;
+  let i = 2;
+  while (fns[`${base}_${i}`]) i++;
   return `${base}_${i}`;
 }
 
@@ -1328,6 +1382,7 @@ const SLUG_STOP = new Set([
   "which", "what", "whats", "who", "when", "where", "how", "do", "does", "did",
   "you", "your", "the", "a", "an", "is", "are", "was", "of", "to", "for", "use",
   "please", "me", "tell", "have", "has", "any", "their", "there", "they", "we", "i",
+  "ve", "re", "ll", "let", "know", // contraction remnants ("we've") + filler verbs
 ]);
 function suggestFieldKey(question) {
   const words = String(question || "").toLowerCase()
@@ -1336,15 +1391,37 @@ function suggestFieldKey(question) {
   return words.slice(0, 3).join("_");
 }
 
+// One question per line → collect fields, keys derived and deduped. Shared by
+// the component library and the add-a-step author form.
+function questionsToFields(qs) {
+  const seen = new Set();
+  return qs.map((q, i) => {
+    const base = suggestFieldKey(q) || `answer_${i + 1}`;
+    let key = base, n = 2;
+    while (seen.has(key)) key = `${base}_${n++}`;
+    seen.add(key);
+    return { question: q, field: key, required: false };
+  });
+}
+
+// Suggest a step name from what the user wrote: first meaningful words of the
+// first line ("Which pharmacy do you use?" → "Pharmacy").
+function suggestStepName(text) {
+  const first = String(text || "").split("\n").map((s) => s.trim()).filter(Boolean)[0] || "";
+  const s = suggestFieldKey(first).replace(/_/g, " ");
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : "";
+}
+
 // "Insurance details" → "insurance_details" (safe for file names AND step ids).
 function slugify(s) {
   return String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 }
 
-// Only these payloads can be wired into a seam with the existing insert
-// primitive (both produce a step that carries its own `next`).
+// Payloads that can be wired into a seam: components and ask-steps carry
+// their own `next`; authored say-steps continue via their generated action's
+// goto. All of them land through the same one-snapshot insert.
 function payloadInsertable(p) {
-  return !!p && (p.kind === "component" || p.vtype === "collect-custom");
+  return !!p && (p.kind === "component" || p.vtype === "collect-custom" || p.vtype === "say");
 }
 
 /* ========================================================================== */
@@ -1377,6 +1454,10 @@ function App() {
   const [savePrompt, setSavePrompt] = useState(null); // {initial, copy} | null
   const [showNewComponent, setShowNewComponent] = useState(false);
   const [confirmBox, setConfirmBox] = useState(null); // {title, message, confirmLabel, tone?, onConfirm}
+  // the add-a-step chooser/author: every conversational add goes through it,
+  // so steps always land already authored (never a blank auto-named card).
+  // {kind:'say'|'ask', allowToggle, dest:{kind:'seam',edgeInfo}|{kind:'park',pos}}
+  const [composer, setComposer] = useState(null);
 
   // drag-from-palette: the payload rides in a ref (dataTransfer is unreadable
   // during dragover); dragInsert re-renders edges so insertable seams show
@@ -1487,15 +1568,26 @@ function App() {
       }
     }
     pushHistory();
-    let id, nn;
+    let id, nn, advanceFn = null;
     if (payload && payload.kind === "component") {
-      id = uniqueId(flow, slugify(payload.name) || "component");
+      id = uniqueIdBare(flow, slugify(payload.name) || "component");
       nn = componentSkeleton(payload);
+    } else if (payload && payload.kind === "authored") {
+      id = uniqueIdBare(flow, payload.idBase);
+      nn = payload.node;
+      if (payload.fnDef) { // an authored say-step brings its continuation action
+        advanceFn = uniqueFnName(flow, `continue_${id}`);
+        flow.functions[advanceFn] = payload.fnDef;
+        nn.functions = [advanceFn];
+      }
     } else {
-      id = uniqueId(flow, "collect");
+      id = uniqueIdBare(flow, "ask");
       nn = newNodeSkeleton("collect-custom");
     }
-    nn.next = target || "";                 // new → original downstream
+    // wire onward: ask-steps continue via their own `next`; an authored
+    // say-step continues via its action's goto (the slot it owns)
+    if (Array.isArray(nn.fields)) nn.next = target || "";
+    else if (advanceFn) flow.functions[advanceFn].behavior.goto = target || null;
     flow.nodes[id] = nn;
     if (via.type === "next") flow.nodes[source].next = id;
     else if (via.type === "bucket") flow.nodes[source].buckets[via.index].next = id;
@@ -1646,12 +1738,18 @@ function App() {
       ...e,
       data: {
         ...e.data,
-        onInsert: (info) => requestInsert(info, null),
+        // adding on a seam goes through the chooser/author too — the step
+        // lands already authored, wired into this exact seam
+        onInsert: (info) => setComposer({ kind: "ask", allowToggle: true, dest: { kind: "seam", edgeInfo: info } }),
         onDropInsert: (info) => {
           const payload = dragPayloadRef.current;
           dragPayloadRef.current = null;
           setDragInsert(false);
-          requestInsert(info, payload);
+          if (payload && payload.kind === "type") {
+            setComposer({ kind: payload.vtype === "say" ? "say" : "ask", allowToggle: false, dest: { kind: "seam", edgeInfo: info } });
+          } else {
+            requestInsert(info, payload); // components are already authored
+          }
         },
         onDeleteRoute: requestRouteDelete,
         edgeInfo: { source: e.data.source, target: e.data.target, via: e.data.via },
@@ -1710,8 +1808,20 @@ function App() {
      the panel button — React Flow's visual-only delete key is disabled. */
   const uiRef = useRef({});
   useEffect(() => {
-    uiRef.current = { selected, selectedEdge, modal: showOpen || !!savePrompt || showNewComponent || !!confirmBox };
+    uiRef.current = {
+      selected, selectedEdge, dirty,
+      modal: showOpen || !!savePrompt || showNewComponent || !!confirmBox || !!composer,
+    };
   });
+  // Unsaved work must never be lost silently: a dirty flow arms the browser's
+  // leave-page warning (refresh, tab close, navigation).
+  useEffect(() => {
+    const onBeforeUnload = (e) => {
+      if (uiRef.current.dirty) { e.preventDefault(); e.returnValue = ""; }
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, []);
   useEffect(() => {
     const onKey = (e) => {
       const t = e.target;
@@ -1903,14 +2013,7 @@ function App() {
     if (!qs.length) { showToast("Add at least one thing to say or ask", true); return false; }
     // Derive a storage key per question (same suggestion logic the panel uses),
     // deduped so two similar questions never collide.
-    const seen = new Set();
-    const fields = qs.map((q, i) => {
-      const base = suggestFieldKey(q) || `answer_${i + 1}`;
-      let key = base, n = 2;
-      while (seen.has(key)) key = `${base}_${n++}`;
-      seen.add(key);
-      return { question: q, field: key, required: false };
-    });
+    const fields = questionsToFields(qs);
     const slug = slugify(title) || "component";
     try {
       const res = await fetch(`/api/components/${encodeURIComponent(slug)}`, {
@@ -1937,10 +2040,18 @@ function App() {
     pushHistory();
     let id, nn;
     if (payload.kind === "component") {
-      id = uniqueId(flow, slugify(payload.name) || "component");
+      id = uniqueIdBare(flow, slugify(payload.name) || "component");
       nn = componentSkeleton(payload);
+    } else if (payload.kind === "authored") {
+      id = uniqueIdBare(flow, payload.idBase);
+      nn = payload.node;
+      if (payload.fnDef) {
+        const advanceFn = uniqueFnName(flow, `continue_${id}`);
+        flow.functions[advanceFn] = payload.fnDef;
+        nn.functions = [advanceFn];
+      }
     } else {
-      id = uniqueId(flow, baseIdFor(payload.vtype));
+      id = uniqueIdBare(flow, baseIdFor(payload.vtype));
       nn = newNodeSkeleton(payload.vtype);
     }
     flow.nodes[id] = nn;
@@ -1956,15 +2067,25 @@ function App() {
     setShowFlowSettings(false);
     setDirty(true);
     bump();
-    // Say / gather / action steps don't continue the call on their own (they
-    // move on through their actions) — say so at creation, not at drag time.
-    const noOnwardPath = payload.kind !== "component" &&
-      ["say", "collect", "tool"].includes(payload.vtype);
-    showToast(noOnwardPath
-      ? `Added "${prettyStep(id)}" — not connected yet. To continue the call after it, follow it with an “Ask questions” step or give it an action.`
-      : `Added "${prettyStep(id)}" — it isn't connected yet, so a call won't reach it.`, true);
+    // Honest landing note per kind: action steps move on through their actions;
+    // ending steps have no way onward at all; everything else has a port to drag.
+    const kind = payload.kind === "type" ? payload.vtype : "";
+    showToast(kind === "tool"
+      ? `Added "${prettyStep(id)}" — not connected yet. To continue the call after it, give it an action or follow it with an “Ask questions” step.`
+      : (kind === "handoff" || kind === "end")
+      ? `Added "${prettyStep(id)}" — not connected yet. Drag another card's bottom dot here to put it on a path.`
+      : `Added "${prettyStep(id)}" — not connected yet. Drag another card's dot to it, or drag its own dot onward.`, true);
   }, [bump, showToast, pushHistory]);
-  const addNode = useCallback((vtype) => addLoose({ kind: "type", vtype }, null), [addLoose]);
+  // Palette click: conversational steps are authored in the chooser first;
+  // everything else lands pre-authored directly.
+  const addNode = useCallback((vtype) => {
+    if (!flowRef.current) { showToast("Create or open a flow first", true); return; }
+    if (vtype === "say" || vtype === "collect-custom") {
+      setComposer({ kind: vtype === "say" ? "say" : "ask", allowToggle: false, dest: { kind: "park", pos: null } });
+    } else {
+      addLoose({ kind: "type", vtype }, null);
+    }
+  }, [addLoose, showToast]);
 
   /* ---- drag from the left rail ---- */
   const beginDrag = useCallback((payload) => (e) => {
@@ -1998,8 +2119,44 @@ function App() {
       }
       if (pos) pos = { x: pos.x - 106, y: pos.y - 20 }; // center the card under the cursor
     }
+    if (payload.kind === "type" && (payload.vtype === "say" || payload.vtype === "collect-custom")) {
+      // conversational drop: author it first, then it lands right here
+      setComposer({ kind: payload.vtype === "say" ? "say" : "ask", allowToggle: false, dest: { kind: "park", pos } });
+      return;
+    }
     addLoose(payload, pos);
   }, [addLoose]);
+
+  /* ---- the add-a-step chooser: land its result where the gesture aimed ---- */
+  const landAt = useCallback((payload, dest) => {
+    setComposer(null);
+    if (dest.kind === "seam") requestInsert(dest.edgeInfo, payload);
+    else addLoose(payload, dest.pos);
+  }, [requestInsert, addLoose]);
+  const authorStep = useCallback(async ({ mode, name, content, saveLib }) => {
+    if (!composer) return;
+    const title = String(name || "").trim();
+    const idBase = slugify(title) || "step";
+    let payload;
+    if (mode === "ask") {
+      const qs = String(content || "").split("\n").map((s) => s.trim()).filter(Boolean);
+      if (!title || !qs.length) { showToast("Give it a name and at least one question", true); return; }
+      payload = {
+        kind: "authored", idBase,
+        node: { type: "collect", fields: questionsToFields(qs), next: "", functions: [] },
+      };
+      if (saveLib) await saveComponent({ name: title, questions: content });
+    } else {
+      const text = String(content || "").trim();
+      if (!title || !text) { showToast("Give it a name and write what the assistant should say", true); return; }
+      payload = {
+        kind: "authored", idBase,
+        node: { type: "say", instructions: text, functions: [] },
+        fnDef: advanceFnDef(),
+      };
+    }
+    landAt(payload, composer.dest);
+  }, [composer, landAt, saveComponent, showToast]);
 
   /* ---- React Flow interactions ---- */
   const onNodesChange = useCallback((changes) => {
@@ -2277,6 +2434,11 @@ function App() {
       ${showNewComponent && html`<${ComponentModal}
                             onSave=${async (v) => { if (await saveComponent(v)) setShowNewComponent(false); }}
                             onClose=${() => setShowNewComponent(false)} />`}
+      ${composer && html`<${ComposerModal} kind=${composer.kind} allowToggle=${composer.allowToggle}
+                            components=${components}
+                            onPick=${(c) => landAt({ kind: "component", name: c.name, title: c.title, fields: c.fields }, composer.dest)}
+                            onAuthor=${authorStep}
+                            onClose=${() => setComposer(null)} />`}
       ${confirmBox && html`<${ConfirmModal} ...${confirmBox} onCancel=${() => setConfirmBox(null)} />`}
 
       ${toast && html`<div class=${"toast" + (toast.err ? " err" : "")}>
@@ -2348,6 +2510,88 @@ function SaveModal({ initial, copy, flowName, onSave, onClose }) {
         <div class="modal-foot">
           <button onClick=${onClose}>Cancel</button>
           <button class="primary" onClick=${submit} disabled=${!valid}>${copy ? "Save my copy" : "Save flow"}</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+/* ---- Add-a-step chooser / author modal --------------------------------------
+   Every conversational add lands through here: pick a saved component (already
+   authored), or write the step right now — name suggested from the content,
+   keys derived, optional save to the library. The step lands real, never a
+   blank auto-named card. */
+function ComposerModal({ kind, allowToggle, components, onPick, onAuthor, onClose }) {
+  const [mode, setMode] = useState(kind === "say" ? "say" : "ask");
+  const [content, setContent] = useState("");
+  const [name, setName] = useState("");
+  const [nameTouched, setNameTouched] = useState(false);
+  const [saveLib, setSaveLib] = useState(false);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { if (!nameTouched) setName(suggestStepName(content)); }, [content, nameTouched]);
+  const valid = name.trim().length > 0 && content.split("\n").some((s) => s.trim());
+  const submit = async () => {
+    if (!valid || busy) return;
+    setBusy(true);
+    await onAuthor({ mode, name, content, saveLib: saveLib && mode === "ask" });
+    setBusy(false);
+  };
+  return html`
+    <div class="overlay" onClick=${onClose}>
+      <div class="modal sm" onClick=${(e) => e.stopPropagation()}>
+        <div class="modal-head">
+          <div>
+            <h3>Add a step</h3>
+            <div class="sub">Use a saved component, or write it right here.</div>
+          </div>
+          <button class="modal-x" onClick=${onClose}>✕</button>
+        </div>
+        <div class="modal-body">
+          ${components.length > 0 && html`
+            <div class="field">
+              <label>My components</label>
+              ${components.map((c) => html`
+                <button key=${c.name} class="pal-item" onClick=${() => onPick(c)}>
+                  <span class="swatch" style=${{ background: "var(--cat-conv)" }}></span>
+                  <span class="pi-body">
+                    <span class="pi-name">${c.title}</span>
+                    <span class="pi-sub">${(c.fields || []).length} question${(c.fields || []).length === 1 ? "" : "s"}</span>
+                  </span>
+                </button>`)}
+              <div class="or-sep">or write a new one</div>
+            </div>`}
+          ${allowToggle && html`
+            <div class="field">
+              <div class="seg">
+                <button class=${mode === "ask" ? "on" : ""} onClick=${() => setMode("ask")}>Ask questions</button>
+                <button class=${mode === "say" ? "on" : ""} onClick=${() => setMode("say")}>Say something</button>
+              </div>
+            </div>`}
+          <div class="field">
+            <label>${mode === "ask" ? "Questions to ask" : "What should the assistant say?"}</label>
+            <textarea rows=${4} autoFocus value=${content}
+              placeholder=${mode === "ask"
+                ? "One question per line, e.g.\nWhich pharmacy do you use?"
+                : "e.g. Let the caller know we've moved to a new office on Main Street."}
+              onInput=${(e) => setContent(e.target.value)}></textarea>
+            ${mode === "ask" && html`<span class="hint">One question per line — each is asked on the call exactly as written.</span>`}
+          </div>
+          <div class="field">
+            <label>Step name</label>
+            <input type="text" class="full" value=${name}
+              placeholder="Suggested from what you wrote"
+              onInput=${(e) => { setName(e.target.value); setNameTouched(true); }} />
+          </div>
+          ${mode === "ask" && html`
+            <div class="field">
+              <label class="chk">
+                <input type="checkbox" checked=${saveLib} onChange=${(e) => setSaveLib(e.target.checked)} />
+                Save to my components
+              </label>
+            </div>`}
+        </div>
+        <div class="modal-foot">
+          <button onClick=${onClose}>Cancel</button>
+          <button class="primary" onClick=${submit} disabled=${!valid || busy}>Add step</button>
         </div>
       </div>
     </div>`;
