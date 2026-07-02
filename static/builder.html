@@ -232,6 +232,33 @@
     width:9px; height:9px; background:#fff; border:2px solid var(--edge);
   }
   .react-flow__handle { width:9px; height:9px; background:var(--edge); border:2px solid #fff; }
+  /* port-drag affordances: draggable ports glow on hover; fixed outcomes are
+     plain dots with no affordance */
+  .rf-node .react-flow__handle.pdrag { cursor:crosshair; }
+  .rf-node .react-flow__handle.pdrag:hover {
+    background:var(--brand); border-color:#fff;
+    box-shadow:0 0 0 4px var(--brand-100);
+  }
+  .rf-node .nport .react-flow__handle.pdrag:hover { background:var(--brand-50); border-color:var(--brand); }
+  .rf-node .react-flow__handle.pfix { cursor:default; }
+  /* invisible catcher over a fixed linear port: grabbing it explains itself */
+  .rf-node { position:relative; }
+  .rf-node .pcatch {
+    position:absolute; bottom:-8px; left:50%; transform:translateX(-50%);
+    width:18px; height:17px; pointer-events:all; cursor:default;
+  }
+  .rf-node .nport.nodrag { cursor:default; }
+  /* while a route is being dragged: card top edges become visible landing spots */
+  .canvas.connecting .react-flow__handle-top {
+    width:13px; height:13px; background:var(--brand-50); border-color:var(--brand);
+  }
+  .canvas.connecting .react-flow__node:hover .rf-node {
+    box-shadow:0 0 0 3px var(--brand-100), var(--shadow-md);
+  }
+  .canvas.connecting .react-flow__node:hover .react-flow__handle-top,
+  .react-flow__handle-connecting { background:var(--brand) !important; }
+  .react-flow__connection-path { stroke:#5E78EE; stroke-width:2; }
+  @keyframes edgeFadeOut { to { opacity:0; } }
   .react-flow__edge-path { stroke-width:1.7; }
   .react-flow__controls { box-shadow:var(--shadow-md); border-radius:10px; overflow:hidden; border:1px solid var(--line); }
   .react-flow__controls-button { border-bottom:1px solid var(--line-soft); }
@@ -721,22 +748,85 @@ function computeEdges(flow) {
   return edges;
 }
 
+/* ---- routing slots: the ONE mutation this pass adds -------------------------
+   A slot is a single re-pointable routing value: a node's own `next`, a
+   categorize bucket's `next`, or a PLAIN-STRING function behavior.goto.
+   Conditional gotos ({cond,then,else}), guards, route arrays, and fallbacks
+   are never slots — they can't be re-pointed by dragging, ever.
+   repointRoute changes that one value and nothing else. */
+function repointRoute(flow, slot, targetId) {
+  if (slot.type === "next") flow.nodes[slot.node].next = targetId;
+  else if (slot.type === "bucket") flow.nodes[slot.node].buckets[slot.index].next = targetId;
+  else if (slot.type === "goto") flow.functions[slot.fn].behavior.goto = targetId;
+}
+// What the slot currently points at (null when empty — a parked card's open port).
+function slotTarget(flow, slot) {
+  if (!slot) return null;
+  if (slot.type === "next") return flow.nodes[slot.node].next || null;
+  if (slot.type === "bucket") return (flow.nodes[slot.node].buckets[slot.index] || {}).next || null;
+  if (slot.type === "goto") {
+    const g = (flow.functions[slot.fn] || {}).behavior?.goto;
+    return typeof g === "string" && g ? g : null;
+  }
+  return null;
+}
+
+// Honest messages for ports that can't be dragged. Plain words only.
+const MSG_COMPLEX_PORT = "Where this goes depends on how the call goes — it can't be re-pointed by dragging.";
+const MSG_FALLBACK_PORT = "This is the backup path — change it under “If nothing matches” in the step's panel.";
+const MSG_NO_PATH = "This step has no path onward yet — an “Ask questions” step is the way to chain the call forward.";
+
+// The linear card's single bottom port maps to a slot only when the card has
+// exactly ONE unconditional way out: its own `next` (custom-question steps),
+// or its sole routed action's plain-string goto. Cards with several ways out,
+// or conditional ones, keep the honest not-draggable message.
+function linearSlot(flow, id) {
+  const node = (flow.nodes || {})[id];
+  if (!node) return null;
+  const vt = visualType(node);
+  if (CATEGORY[vt] === "decision" || CATEGORY[vt] === "terminal") return null;
+  if (vt === "collect-custom") return { type: "next", node: id };
+  const routed = (node.functions || []).filter((fn) => {
+    const def = (flow.functions || {})[fn];
+    return def && behaviorTargets(def.behavior).length > 0;
+  });
+  if (routed.length !== 1) return null;
+  return simpleLinearGoto((flow.functions[routed[0]] || {}).behavior) !== null
+    ? { type: "goto", fn: routed[0] } : null;
+}
+
 /* ---- outcome ports for decision cards ---------------------------------------
    One labeled port per way the call can leave the card: each categorize bucket,
    its "otherwise" default, and each behavior-routed outcome. Port ids MUST
    match the sourceHandle ids computeEdges assigns, or React Flow drops the
-   edge. Ports are display + anchor only — dragging from them is disabled. */
+   edge. A port carries its slot when it is re-pointable by dragging; ports
+   without a slot render as plain dots and explain themselves when grabbed. */
 function decisionPorts(flow, id) {
   const node = (flow.nodes || {})[id];
   if (!node || CATEGORY[visualType(node)] !== "decision") return null;
   const ports = [];
-  (node.buckets || []).forEach((b, i) => ports.push({ id: `b:${i}`, label: prettyStep(b.name || "option") }));
-  if (node.type === "categorize") ports.push({ id: "fb", label: "Otherwise" });
+  (node.buckets || []).forEach((b, i) => ports.push({
+    id: `b:${i}`, label: prettyStep(b.name || "option"),
+    slot: { type: "bucket", node: id, index: i },
+  }));
+  if (node.type === "categorize") ports.push({ id: "fb", label: "Otherwise", slot: null, blockedMsg: MSG_FALLBACK_PORT });
   (node.functions || []).forEach((fn) => {
     const def = (flow.functions || {})[fn];
-    if (def && behaviorTargets(def.behavior).length) ports.push({ id: `f:${fn}`, label: prettyStep(fn) });
+    if (def && behaviorTargets(def.behavior).length) ports.push({
+      id: `f:${fn}`, label: prettyStep(fn),
+      slot: simpleLinearGoto(def.behavior) !== null ? { type: "goto", fn } : null,
+      blockedMsg: MSG_COMPLEX_PORT,
+    });
   });
   return ports;
+}
+
+// Resolve a drag's source handle to its slot (always from the LIVE flow, so a
+// stale canvas can never repoint something that's no longer plain).
+function portSlot(flow, nodeId, handleId) {
+  if (!handleId) return linearSlot(flow, nodeId);
+  const p = (decisionPorts(flow, nodeId) || []).find((x) => x.id === handleId);
+  return p ? p.slot : null;
 }
 
 /* ---- is this seam ambiguous? -------------------------------------------------
@@ -865,6 +955,33 @@ function FlowNode({ id, data }) {
   const qCount = vt === "collect-custom"
     ? (node.fields || []).filter((f) => f.question || f.field).length : 0;
 
+  // Bottom of the card: labeled outcome ports (decision), a single next port
+  // (linear — draggable when it maps to a slot, incl. an EMPTY one on a parked
+  // card), or nothing at all (ending cards have no way out).
+  // Grabbing a fixed port explains itself in plain words. Non-connectable
+  // handles are pointer-events:none (React Flow), so the message handler
+  // lives on our own elements: the port cell, or a catcher over the dot.
+  const blockedDown = (msg) => () => { data.onPortBlocked && data.onPortBlocked(msg); };
+  let bottom = null;
+  if (ports && ports.length) {
+    bottom = html`<div class="nports">
+      ${ports.map((p) => html`
+        <div class=${"nport" + (p.slot ? "" : " nodrag")} key=${p.id}
+          onPointerDown=${p.slot ? undefined : blockedDown(p.blockedMsg || MSG_COMPLEX_PORT)}>
+          <span class="nport-lbl" title=${p.label}>${p.label}</span>
+          <${Handle} type="source" position=${Position.Bottom} id=${p.id}
+            isConnectable=${!!p.slot}
+            className=${p.slot ? "pdrag" : "pfix"} />
+          ${!p.slot && html`<span class="pcatch"></span>`}
+        </div>`)}
+    </div>`;
+  } else if (CATEGORY[vt] !== "terminal" || data.hasOut) {
+    bottom = data.linearSlot
+      ? html`<${Handle} type="source" position=${Position.Bottom} isConnectable=${true} className="pdrag" />`
+      : html`<${Handle} type="source" position=${Position.Bottom} isConnectable=${false} className="pfix" />
+             <span class="pcatch nodrag" onPointerDown=${blockedDown(data.linearBlockedMsg || MSG_COMPLEX_PORT)}></span>`;
+  }
+
   return html`
     <div class=${"rf-node" + (data.selected ? " sel" : "") + (ports && ports.length ? " ports" : "")}
          style=${{ borderTopColor: cat.color }}>
@@ -888,15 +1005,7 @@ function FlowNode({ id, data }) {
         </div>
         ${data.isInitial && html`<span class="ninit" title="Start of the call"><${Icon} name="flag" size=${13} /></span>`}
       </div>
-      ${ports && ports.length
-        ? html`<div class="nports">
-            ${ports.map((p) => html`
-              <div class="nport" key=${p.id}>
-                <span class="nport-lbl" title=${p.label}>${p.label}</span>
-                <${Handle} type="source" position=${Position.Bottom} id=${p.id} isConnectable=${false} />
-              </div>`)}
-          </div>`
-        : html`<${Handle} type="source" position=${Position.Bottom} />`}
+      ${bottom}
     </div>`;
 }
 const nodeTypes = { flowNode: FlowNode };
@@ -914,6 +1023,11 @@ function FlowEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targ
   const d = data || {};
   const [hover, setHover] = useState(false);
   const [over, setOver] = useState(false); // a dragged item is over this seam
+  // the RELEASE RULE's ghost: the route a port-drag just let go of, fading out
+  if (d.fading) {
+    return html`<${BaseEdge} id=${id} path=${edgePath} markerEnd=${markerEnd}
+      style=${{ ...style, animation: "edgeFadeOut .5s ease forwards", pointerEvents: "none" }} />`;
+  }
   const canInsert = !!d.via;
   const dropTarget = !!d.dropActive && canInsert;
   const stroke = over ? { stroke: "var(--brand)", strokeWidth: 2.4 }
@@ -1218,6 +1332,14 @@ function App() {
   const rfInst = useRef(null);
   const canvasRef = useRef(null);
 
+  // port-drag routing: while a route is being dragged off a port, cards light
+  // up as landing spots; the old arrow fades out on release (fadeEdges).
+  const [connecting, setConnecting] = useState(false);
+  const connStart = useRef(null);   // {nodeId, handleId, handleType} of the grabbed port
+  const didConnect = useRef(false); // onConnect fired → onConnectEnd must not double-handle
+  const fadeEdges = useRef([]);     // released routes, drawn once more while they fade
+  const fadeSeq = useRef(0);
+
   const toastTimer = useRef(null);
   const showToast = useCallback((msg, err) => {
     setToast({ msg, err });
@@ -1455,26 +1577,42 @@ function App() {
     }));
     // a step nothing routes to (and isn't the start) is a disconnected orphan
     const incoming = new Set(edges.map((e) => e.target));
+    const outgoing = new Set(edges.map((e) => e.source));
     if (relayout || Object.keys(posRef.current).length === 0) {
       posRef.current = layout(flow);
     }
     const auto = layout(flow); // fills a slot for any node lacking a saved position
-    const nodes = Object.entries(flow.nodes || {}).map(([id, node]) => ({
-      id,
-      type: "flowNode",
-      position: posRef.current[id] || auto[id] || { x: 60, y: 60 },
-      data: {
-        node,
-        isInitial: flow.initial_node === id,
-        selected: selected === id,
-        orphan: flow.initial_node !== id && !incoming.has(id),
-        onRename: renameNode,
-        ports: decisionPorts(flow, id),
-      },
-    }));
+    const nodes = Object.entries(flow.nodes || {}).map(([id, node]) => {
+      const slot = linearSlot(flow, id);
+      // A slot-less linear card is honest about why its port won't drag:
+      // it either has several / conditional ways out, or none at all yet.
+      const hasWaysOut = (node.functions || []).some((fn) => {
+        const def = (flow.functions || {})[fn];
+        return def && behaviorTargets(def.behavior).length > 0;
+      });
+      return {
+        id,
+        type: "flowNode",
+        position: posRef.current[id] || auto[id] || { x: 60, y: 60 },
+        data: {
+          node,
+          isInitial: flow.initial_node === id,
+          selected: selected === id,
+          orphan: flow.initial_node !== id && !incoming.has(id),
+          onRename: renameNode,
+          ports: decisionPorts(flow, id),
+          linearSlot: slot,
+          linearBlockedMsg: hasWaysOut ? MSG_COMPLEX_PORT : MSG_NO_PATH,
+          onPortBlocked: (msg) => showToast(msg, true),
+          hasOut: outgoing.has(id),
+        },
+      };
+    });
     setRfNodes(nodes);
-    setRfEdges(edges);
-  }, [selected, requestInsert, renameNode, dragInsert]);
+    // released routes ride along briefly while they fade out
+    const fades = fadeEdges.current.filter((f) => flow.nodes[f.source] && flow.nodes[f.target]);
+    setRfEdges(fades.length ? [...edges, ...fades] : edges);
+  }, [selected, requestInsert, renameNode, dragInsert, showToast]);
 
   useEffect(() => { rebuild(false); }, [rev, selected, rebuild]);
 
@@ -1758,20 +1896,66 @@ function App() {
     showToast(CANT_INSERT_MSG, true);
   }, [showToast]);
 
-  // Drag-to-connect: set routing where a node HAS a node-level target.
-  const onConnect = useCallback((c) => {
+  /* ---- port-drag routing: repoint ONE slot to a different step -------------
+     The drag maps a grabbed port to its slot from the LIVE config (never from
+     stale canvas data), then repointRoute changes that single value. One
+     history snapshot per drop → one ⌘Z restores the previous route exactly. */
+  const connectTo = useCallback((sourceId, sourceHandle, targetId) => {
     const flow = flowRef.current;
-    const src = flow.nodes[c.source];
-    if (!src) return;
-    if (visualType(src) === "collect-custom") {
-      pushHistory();
-      src.next = c.target;
-      showToast(`${prettyStep(c.source)} → ${prettyStep(c.target)}`);
-      markDirty();
-    } else {
-      showToast("Where this step goes next is decided by its settings — open it and use the panel.", true);
+    if (!flow || !flow.nodes[sourceId] || !flow.nodes[targetId]) return;
+    if (sourceId === targetId) return;         // self-routing: quiet reject
+    const slot = portSlot(flow, sourceId, sourceHandle || null);
+    if (!slot) { showToast(MSG_COMPLEX_PORT, true); return; }
+    const prev = slotTarget(flow, slot);
+    if (prev === targetId) return;             // already goes there: nothing to do
+    pushHistory();                             // ONE snapshot per repoint
+    repointRoute(flow, slot, targetId);
+    // the release rule, made visible: the let-go route fades while the new lands
+    if (prev && flow.nodes[prev]) {
+      const fid = `fade:${++fadeSeq.current}`;
+      fadeEdges.current.push({
+        id: fid, source: sourceId, target: prev,
+        ...(sourceHandle ? { sourceHandle } : {}),
+        type: "flowEdge",
+        style: { stroke: EDGE_COLOR, strokeWidth: 1.7 },
+        markerEnd: { type: "arrowclosed", color: EDGE_COLOR, width: 15, height: 15 },
+        data: { fading: true },
+      });
+      setTimeout(() => {
+        fadeEdges.current = fadeEdges.current.filter((e) => e.id !== fid);
+        bump();
+      }, 550);
     }
-  }, [markDirty, showToast, pushHistory]);
+    setDirty(true);
+    bump();
+    showToast(prev && flow.nodes[prev]
+      ? `Now goes to "${prettyStep(targetId)}". "${prettyStep(prev)}" is no longer on this path.`
+      : `Now goes to "${prettyStep(targetId)}".`);
+  }, [pushHistory, bump, showToast]);
+
+  const onConnect = useCallback((c) => {
+    didConnect.current = true;
+    connectTo(c.source, c.sourceHandle, c.target);
+  }, [connectTo]);
+  const onConnectStart = useCallback((_e, params) => {
+    didConnect.current = false;
+    connStart.current = params;
+    setConnecting(true);
+  }, []);
+  // "Drop on a card" — not just on its top handle. If React Flow didn't snap
+  // the connection to a handle, land it on whatever card is under the cursor.
+  const onConnectEnd = useCallback((evt) => {
+    setConnecting(false);
+    const start = connStart.current;
+    connStart.current = null;
+    if (didConnect.current || !start || start.handleType !== "source") return;
+    const x = evt.clientX ?? (evt.changedTouches && evt.changedTouches[0] && evt.changedTouches[0].clientX);
+    const y = evt.clientY ?? (evt.changedTouches && evt.changedTouches[0] && evt.changedTouches[0].clientY);
+    if (x == null || y == null) return;
+    const el = document.elementFromPoint(x, y);
+    const nodeEl = el && el.closest ? el.closest(".react-flow__node") : null;
+    if (nodeEl) connectTo(start.nodeId, start.handleId, nodeEl.getAttribute("data-id"));
+  }, [connectTo]);
 
   const flow = flowRef.current;
   const nodeIdList = flow ? Object.keys(flow.nodes || {}) : [];
@@ -1827,7 +2011,7 @@ function App() {
         <div class="palette">
           <div class="tip">
             <${Icon} name="cursor" size=${15} />
-            <div>Drag a step onto a <strong>line</strong> between two cards — it wires itself in. Drop it on empty space to keep it aside for later.</div>
+            <div>Drag a step onto a <strong>line</strong> between two cards — it wires itself in. Drag a card's <strong>bottom dot</strong> to another card to change where it goes.</div>
           </div>
           ${RAIL.map((sec) => html`
             <div class="rail-sec" key=${sec.title}>
@@ -1885,7 +2069,8 @@ function App() {
         </div>
 
         <!-- canvas -->
-        <div class="canvas" ref=${canvasRef} onDragOver=${onCanvasDragOver} onDrop=${onCanvasDrop}>
+        <div class=${"canvas" + (connecting ? " connecting" : "")} ref=${canvasRef}
+             onDragOver=${onCanvasDragOver} onDrop=${onCanvasDrop}>
           ${flow && view === "outline"
             ? html`<${Outline} flow=${flow} selected=${selected}
                       onPick=${(id) => { setShowFlowSettings(false); setSelected(id); }} />`
@@ -1896,7 +2081,11 @@ function App() {
                 nodeTypes=${nodeTypes} edgeTypes=${edgeTypes}
                 onInit=${(inst) => { rfInst.current = inst; }}
                 onNodesChange=${onNodesChange} onEdgesChange=${onEdgesChange}
-                onConnect=${onConnect}
+                onConnect=${onConnect} onConnectStart=${onConnectStart} onConnectEnd=${onConnectEnd}
+                connectionLineType="smoothstep"
+                connectionLineStyle=${{ stroke: "#5E78EE", strokeWidth: 2, opacity: 0.9 }}
+                connectionRadius=${40}
+                isValidConnection=${(c) => c.source !== c.target}
                 onNodeClick=${onNodeClick} onPaneClick=${onPaneClick} onEdgeClick=${onEdgeClick}
                 onNodeDragStart=${pushHistory}
                 deleteKeyCode=${null} zoomOnDoubleClick=${false}
@@ -2175,7 +2364,7 @@ function Props({ flow, nodeId, nodeIds, markDirty, pushHistory, renameNode, requ
       <div class="note warn" style=${{ marginBottom: "14px" }}>
         <${Icon} name="warn" size=${14} />
         <div>This step isn't connected — nothing leads to it, so a call never reaches it.
-          Drag a step from the left onto a line, or point another step here.</div>
+          Drag another card's bottom dot onto this card, or drop a new step onto a line.</div>
       </div>`}
 
     <div class="field">

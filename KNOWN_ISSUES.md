@@ -43,14 +43,16 @@ Before hosting (ngrok or deploy), add at minimum:
 2. Rate limiting on /start and the API routes (N per IP per minute).
 Do NOT share a public URL until at least the token gate is in place.
 
-## Builder can't re-point an existing connection (remaining re-wiring gap)
-The builder now inserts steps into any mechanically-safe seam (including linear
-function-goto routes — the seam's goto is repointed by the proven insert
-primitive), bridge-deletes them back out, and drags components in. What it still
-cannot do is RE-POINT an existing connection to a different step (e.g. change
-where "verify existing patient" goes on failure): conditional routes, guards,
-and {cond,then,else} targets are only editable in JSON. Port-drag re-routing
-was explicitly excluded from the Worktree pass — it is the next builder feature.
+## Builder can't edit CONDITIONAL routing (remaining re-wiring gap)
+Port-drag re-routing shipped: any single plain routing slot — a step's own
+`next`, a categorize bucket's `next`, or a plain-string function behavior.goto —
+can be re-pointed by dragging its port to another card (one value changed, one
+undo step). Still JSON-only: conditional targets ({cond,then,else} like the
+slots_available paths), guard gotos, nested route arrays, and categorize
+fallbacks (fallback is panel-editable, not draggable). Those ports render as
+plain dots and explain themselves when grabbed. Note that a shared function's
+goto (e.g. begin_new_intake, used by two steps) is one slot — dragging it moves
+every arrow that rides it, which the map shows immediately.
 
 ## Builder UX niceties (post-demo polish)
 - Drag-select multiple nodes on the canvas (React Flow selectionOnDrag / multi-select).
