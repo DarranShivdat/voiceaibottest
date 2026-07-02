@@ -379,6 +379,13 @@
     box-shadow:var(--shadow-sm); white-space:nowrap;
   }
   .dropzone.over { background:var(--brand); color:#fff; box-shadow:0 2px 10px rgba(94,120,238,.5); }
+  /* remove-this-arrow affordance on a selected edge */
+  .edge-x {
+    width:24px; height:24px; padding:0; justify-content:center; border-radius:50%;
+    background:#fff; border:1.5px solid #fecaca; color:#b91c1c; font-size:12px; font-weight:800;
+    box-shadow:var(--shadow-sm);
+  }
+  .edge-x:hover { background:#fee2e2; border-color:#fca5a5; }
 
   /* ---- "Advanced" collapsible in the properties panel ---- */
   .adv { border:1px solid var(--line); border-radius:11px; margin:18px 0 4px; overflow:hidden; }
@@ -649,6 +656,19 @@ function simpleLinearGoto(behavior) {
   return typeof behavior.goto === "string" ? behavior.goto : null;
 }
 
+// The plain-slot SHAPE: an unconditional single goto — a string target, or
+// null (the engine's own "no target" value, e.g. after an arrow is removed).
+// Returns the goto value, or undefined when the behavior is conditional
+// (guards / routes / {cond,...}) and therefore never a draggable slot.
+function plainGoto(behavior) {
+  if (!behavior) return undefined;
+  if (behavior.guards && behavior.guards.length) return undefined;
+  if (behavior.routes) return undefined;
+  if (!("goto" in behavior)) return undefined;
+  const g = behavior.goto;
+  return typeof g === "string" || g === null ? g : undefined;
+}
+
 /* ---- every route pointing AT a node (used so delete can reverse insert) ----
    Returns one entry per inbound reference. Entries of a rewireable kind — a
    node-level `next`, a bucket `next`, or a plain-string function
@@ -702,6 +722,9 @@ function computeEdges(flow) {
 
   const edges = [];
   const seen = new Set();
+  // opts.slotRef: the single plain routing value this arrow draws (a next, a
+  // bucket next, or a plain-string goto) — the arrow can be re-pointed or
+  // removed through it. Arrows without one carry a blockedMsg instead.
   const add = (source, target, key, opts = {}) => {
     if (!target || !nodeIds.has(target)) return;
     const id = `${source}=>${target}#${key}`;
@@ -713,7 +736,11 @@ function computeEdges(flow) {
       type: "flowEdge",
       style: { stroke: EDGE_COLOR, strokeWidth: 1.7 },
       markerEnd: { type: "arrowclosed", color: EDGE_COLOR, width: 15, height: 15 },
-      data: { source, target, via: opts.via || null },
+      data: {
+        source, target, via: opts.via || null,
+        slotRef: opts.slotRef || null,
+        blockedMsg: opts.blockedMsg || MSG_COMPLEX_PORT,
+      },
     });
   };
 
@@ -723,11 +750,14 @@ function computeEdges(flow) {
     if (node.type === "categorize") {
       // Each bucket target is a node-owned linear route → insertable.
       (node.buckets || []).forEach((b, i) =>
-        add(id, b.next, `b${i}`, { via: { type: "bucket", index: i }, sourceHandle: `b:${i}` }));
+        add(id, b.next, `b${i}`, {
+          via: { type: "bucket", index: i }, sourceHandle: `b:${i}`,
+          slotRef: { type: "bucket", node: id, index: i },
+        }));
       // Fallback is a default route — drawn like everything else, not insertable.
-      add(id, node.fallback, "fb", { sourceHandle: "fb" });
+      add(id, node.fallback, "fb", { sourceHandle: "fb", blockedMsg: MSG_FALLBACK_PORT });
     } else if (vt === "collect-custom") {
-      add(id, node.next, "next", { via: { type: "next" } });
+      add(id, node.next, "next", { via: { type: "next" }, slotRef: { type: "next", node: id } });
     }
     // Routing implied by exposed functions — same quiet arrow as everything else.
     (node.functions || []).forEach((fn) => {
@@ -735,13 +765,16 @@ function computeEdges(flow) {
       if (!def) return;
       const sh = isDecision ? `f:${fn}` : undefined;
       const linear = simpleLinearGoto(def.behavior);
+      const slotRef = plainGoto(def.behavior) !== undefined ? { type: "goto", fn } : null;
       if (linear && fnUsage[fn] === 1) {
         // Single unconditional target, used only here → insertable by editing
         // this one goto value.
-        add(id, linear, fn, { via: { type: "goto", fn }, sourceHandle: sh });
+        add(id, linear, fn, { via: { type: "goto", fn }, sourceHandle: sh, slotRef });
       } else {
         // Conditional / multi-target / shared → drawn, but not insertable.
-        behaviorTargets(def.behavior).forEach((t) => add(id, t, fn, { sourceHandle: sh }));
+        // (A shared plain goto still carries its slotRef: like port-drag, a
+        // removal edits that ONE value — the map shows every arrow riding it.)
+        behaviorTargets(def.behavior).forEach((t) => add(id, t, fn, { sourceHandle: sh, slotRef }));
       }
     });
   }
@@ -774,12 +807,14 @@ function slotTarget(flow, slot) {
 // Honest messages for ports that can't be dragged. Plain words only.
 const MSG_COMPLEX_PORT = "Where this goes depends on how the call goes — it can't be re-pointed by dragging.";
 const MSG_FALLBACK_PORT = "This is the backup path — change it under “If nothing matches” in the step's panel.";
-const MSG_NO_PATH = "This step has no path onward yet — an “Ask questions” step is the way to chain the call forward.";
+const MSG_NO_PATH = "This step won't continue the call by itself — follow it with an “Ask questions” step, or give it an action that moves the call onward.";
 
 // The linear card's single bottom port maps to a slot only when the card has
 // exactly ONE unconditional way out: its own `next` (custom-question steps),
-// or its sole routed action's plain-string goto. Cards with several ways out,
-// or conditional ones, keep the honest not-draggable message.
+// or its sole plain-goto action (say/collect steps route onward through their
+// actions — that's how the clinic flow's say-steps continue). An action whose
+// goto is still null counts too, so a removed arrow can be re-drawn. Cards
+// with several ways out, or conditional ones, keep the honest message.
 function linearSlot(flow, id) {
   const node = (flow.nodes || {})[id];
   if (!node) return null;
@@ -790,9 +825,18 @@ function linearSlot(flow, id) {
     const def = (flow.functions || {})[fn];
     return def && behaviorTargets(def.behavior).length > 0;
   });
-  if (routed.length !== 1) return null;
-  return simpleLinearGoto((flow.functions[routed[0]] || {}).behavior) !== null
-    ? { type: "goto", fn: routed[0] } : null;
+  if (routed.length > 1) return null;
+  if (routed.length === 1) {
+    return plainGoto((flow.functions[routed[0]] || {}).behavior) !== undefined
+      ? { type: "goto", fn: routed[0] } : null;
+  }
+  // No routed actions: exactly one action with an EMPTY plain goto still gives
+  // this card a draggable (empty) port — how a say-step gets its first route.
+  const empties = (node.functions || []).filter((fn) => {
+    const def = (flow.functions || {})[fn];
+    return def && plainGoto(def.behavior) === null;
+  });
+  return empties.length === 1 ? { type: "goto", fn: empties[0] } : null;
 }
 
 /* ---- outcome ports for decision cards ---------------------------------------
@@ -812,9 +856,13 @@ function decisionPorts(flow, id) {
   if (node.type === "categorize") ports.push({ id: "fb", label: "Otherwise", slot: null, blockedMsg: MSG_FALLBACK_PORT });
   (node.functions || []).forEach((fn) => {
     const def = (flow.functions || {})[fn];
-    if (def && behaviorTargets(def.behavior).length) ports.push({
+    if (!def) return;
+    const plain = plainGoto(def.behavior);
+    // A port exists for every outcome with a target, plus plain-goto outcomes
+    // whose target was removed (goto null) — those stay draggable to re-wire.
+    if (behaviorTargets(def.behavior).length || plain !== undefined) ports.push({
       id: `f:${fn}`, label: prettyStep(fn),
-      slot: simpleLinearGoto(def.behavior) !== null ? { type: "goto", fn } : null,
+      slot: plain !== undefined ? { type: "goto", fn } : null,
       blockedMsg: MSG_COMPLEX_PORT,
     });
   });
@@ -985,7 +1033,7 @@ function FlowNode({ id, data }) {
   return html`
     <div class=${"rf-node" + (data.selected ? " sel" : "") + (ports && ports.length ? " ports" : "")}
          style=${{ borderTopColor: cat.color }}>
-      <${Handle} type="target" position=${Position.Top} />
+      <${Handle} type="target" position=${Position.Top} isConnectableStart=${false} />
       <div class="nhead">
         <span class="nicon" style=${{ background: cat.bg, color: cat.color }}><${Icon} name=${TYPE_ICON[vt] || "chat"} size=${13} /></span>
         <div class="nmain">
@@ -1031,8 +1079,9 @@ function FlowEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targ
   const canInsert = !!d.via;
   const dropTarget = !!d.dropActive && canInsert;
   const stroke = over ? { stroke: "var(--brand)", strokeWidth: 2.4 }
+    : d.isSel ? { stroke: "#4a62d8", strokeWidth: 2.4 }
     : d.emph ? { stroke: "#5E78EE", strokeWidth: 2 }
-    : hover && canInsert ? { stroke: "#7c86a3", strokeWidth: 2 } : {};
+    : hover ? { stroke: "#7c86a3", strokeWidth: 2 } : {};
   const dragProps = dropTarget ? {
     onDragOver: (e) => { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; setOver(true); },
     onDragLeave: () => setOver(false),
@@ -1045,15 +1094,18 @@ function FlowEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targ
     <${BaseEdge} id=${id} path=${edgePath} markerEnd=${markerEnd}
       style=${{ ...style, ...stroke, transition: "stroke .12s, stroke-width .12s" }} />
     <path d=${edgePath} fill="none" stroke="transparent" strokeWidth=${18}
-      style=${{ pointerEvents: "stroke" }}
+      style=${{ pointerEvents: "stroke", cursor: "pointer" }}
       onMouseEnter=${() => setHover(true)} onMouseLeave=${() => setHover(false)} ...${dragProps} />
-    ${(dropTarget || (canInsert && hover)) && html`
+    ${(dropTarget || d.isSel || (canInsert && hover)) && html`
       <${EdgeLabelRenderer}>
         <div class=${"edge-lyr" + (dropTarget ? " drop" : "")}
           style=${{ transform: `translate(-50%,-50%) translate(${labelX}px,${labelY}px)` }}
           onMouseEnter=${() => setHover(true)} onMouseLeave=${() => setHover(false)} ...${dragProps}>
           ${dropTarget
             ? html`<div class=${"dropzone" + (over ? " over" : "")}>${over ? "drops in — wires itself" : "drop here"}</div>`
+            : d.isSel
+            ? html`<button class="edge-x" title="Remove this connection"
+                onClick=${(e) => { e.stopPropagation(); d.onDeleteRoute && d.onDeleteRoute(id); }}>✕</button>`
             : html`<button class="edge-insert" title="Add a step here"
                 onClick=${(e) => { e.stopPropagation(); d.onInsert && d.onInsert(d.edgeInfo); }}>
                 <span class="ei-plus">+</span><span class="ei-txt">Add a step</span>
@@ -1308,6 +1360,8 @@ function App() {
   const [rfNodes, setRfNodes] = useState([]);
   const [rfEdges, setRfEdges] = useState([]);
   const [selected, setSelected] = useState(null);
+  const [selectedEdge, setSelectedEdge] = useState(null); // id of the selected arrow
+  const edgesRef = useRef([]); // current derived edges (for arrow-delete lookup)
   const [showFlowSettings, setShowFlowSettings] = useState(false);
   const [view, setView] = useState("map"); // "map" (default) | "outline" (read-only)
 
@@ -1554,11 +1608,40 @@ function App() {
     });
   }, [pushHistory, bump, showToast]);
 
+  /* ---- remove an individual arrow -------------------------------------------
+     Clicking an arrow selects it; Delete/Backspace or its ✕ removes the route
+     by setting that ONE plain slot to null (the engine's own "no target"
+     value) via the same repointRoute machinery. Conditional/complex arrows
+     aren't deletable — clicking them explains why instead. */
+  const requestRouteDelete = useCallback((edgeId) => {
+    const flow = flowRef.current;
+    const e = edgesRef.current.find((x) => x.id === edgeId);
+    if (!flow || !e) return;
+    const slot = e.data.slotRef;
+    if (!slot) { showToast(e.data.blockedMsg || MSG_COMPLEX_PORT, true); return; }
+    // revalidate against the LIVE config — never delete through a stale slot
+    if (slotTarget(flow, slot) !== e.target) { setSelectedEdge(null); return; }
+    setConfirmBox({
+      title: `Remove the connection from “${prettyStep(e.source)}” to “${prettyStep(e.target)}”?`,
+      message: `The call will no longer continue from “${prettyStep(e.source)}” to “${prettyStep(e.target)}”. You can undo this with ⌘Z.`,
+      confirmLabel: "Remove it",
+      onConfirm: () => {
+        pushHistory(); // ONE snapshot → one ⌘Z restores the arrow
+        repointRoute(flow, slot, null);
+        setConfirmBox(null);
+        setSelectedEdge(null);
+        setDirty(true);
+        bump();
+        showToast(`Removed — "${prettyStep(e.target)}" is no longer on this path.`);
+      },
+    });
+  }, [pushHistory, bump, showToast]);
+
   /* rebuild the React Flow view from the current flow config */
   const rebuild = useCallback((relayout) => {
     const flow = flowRef.current;
     if (!flow) { setRfNodes([]); setRfEdges([]); return; }
-    // attach the live insert/drop handlers + rewire descriptor to each edge
+    // attach the live insert/drop/delete handlers + rewire descriptor to each edge
     const edges = computeEdges(flow).map((e) => ({
       ...e,
       data: {
@@ -1570,11 +1653,16 @@ function App() {
           setDragInsert(false);
           requestInsert(info, payload);
         },
+        onDeleteRoute: requestRouteDelete,
         edgeInfo: { source: e.data.source, target: e.data.target, via: e.data.via },
         emph: !!selected && (e.source === selected || e.target === selected),
+        isSel: e.id === selectedEdge,
         dropActive: dragInsert,
       },
     }));
+    edgesRef.current = edges;
+    // an arrow that no longer exists (undo, delete, repoint) can't stay selected
+    if (selectedEdge && !edges.some((e) => e.id === selectedEdge)) setSelectedEdge(null);
     // a step nothing routes to (and isn't the start) is a disconnected orphan
     const incoming = new Set(edges.map((e) => e.target));
     const outgoing = new Set(edges.map((e) => e.source));
@@ -1612,7 +1700,7 @@ function App() {
     // released routes ride along briefly while they fade out
     const fades = fadeEdges.current.filter((f) => flow.nodes[f.source] && flow.nodes[f.target]);
     setRfEdges(fades.length ? [...edges, ...fades] : edges);
-  }, [selected, requestInsert, renameNode, dragInsert, showToast]);
+  }, [selected, selectedEdge, requestInsert, requestRouteDelete, renameNode, dragInsert, showToast]);
 
   useEffect(() => { rebuild(false); }, [rev, selected, rebuild]);
 
@@ -1622,7 +1710,7 @@ function App() {
      the panel button — React Flow's visual-only delete key is disabled. */
   const uiRef = useRef({});
   useEffect(() => {
-    uiRef.current = { selected, modal: showOpen || !!savePrompt || showNewComponent || !!confirmBox };
+    uiRef.current = { selected, selectedEdge, modal: showOpen || !!savePrompt || showNewComponent || !!confirmBox };
   });
   useEffect(() => {
     const onKey = (e) => {
@@ -1637,15 +1725,33 @@ function App() {
       } else if ((e.key === "Backspace" || e.key === "Delete") && !typing && uiRef.current.selected) {
         e.preventDefault();
         requestDelete(uiRef.current.selected);
+      } else if ((e.key === "Backspace" || e.key === "Delete") && !typing && uiRef.current.selectedEdge) {
+        e.preventDefault();
+        requestRouteDelete(uiRef.current.selectedEdge);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [undo, redo, requestDelete]);
+  }, [undo, redo, requestDelete, requestRouteDelete]);
 
   const refreshList = useCallback(() => {
-    return fetch("/api/flows").then((r) => r.json()).then((d) => setFlowList(d.flows || []))
-      .catch(() => showToast("Could not list flows", true));
+    // The list API doesn't say which flows are designated templates, so read
+    // each flow (they're small, local) and mark the ones that opt in with
+    // "template": true. Only those appear in the Templates rail; Open flow
+    // shows everything.
+    return fetch("/api/flows").then((r) => r.json()).then(async (d) => {
+      const items = d.flows || [];
+      const marked = await Promise.all(items.map(async (f) => {
+        try {
+          const res = await fetch(`/api/flows/${encodeURIComponent(f.name)}`);
+          const spec = await res.json();
+          return { ...f, template: !!(spec && spec.template === true) };
+        } catch (_) {
+          return { ...f, template: false };
+        }
+      }));
+      setFlowList(marked);
+    }).catch(() => showToast("Could not list flows", true));
   }, [showToast]);
   const refreshComponents = useCallback(() => {
     return fetch("/api/components").then((r) => r.json()).then((d) => setComponents(d.components || []))
@@ -1727,7 +1833,7 @@ function App() {
 
   /* ---- save (name is explicit; called by Save / Save-as) ---- */
   const doSave = useCallback(async (rawName) => {
-    const flow = flowRef.current;
+    let flow = flowRef.current;
     if (!flow) return false;
     const name = (rawName || "").trim().replace(/\.json$/i, "");
     if (!name) { showToast("Enter a file name to save", true); return false; }
@@ -1736,6 +1842,18 @@ function App() {
     }
     if (!flow.nodes || !flow.nodes[flow.initial_node]) {
       showToast(`The first step "${flow.initial_node}" isn't defined`, true); return false;
+    }
+    // Copies of a template are the user's own flows: the template designation
+    // only ever lands back in a file that is already a designated template
+    // (e.g. an unedited open→save of the template itself, which stays
+    // byte-identical). Every other save strips the flag.
+    const keepFlag = flowList.length
+      ? flowList.some((f) => f.name === name && f.template)
+      : name === loadedName; // list unavailable: at least keep in-place saves intact
+    if (flow.template === true && !keepFlag) {
+      const copy = { ...flow }; // spread preserves key order
+      delete copy.template;
+      flow = copy;
     }
     try {
       const body = JSON.stringify(flow, null, 2);
@@ -1746,17 +1864,19 @@ function App() {
       });
       const d = await res.json();
       if (!res.ok) throw new Error(d.error || res.statusText);
+      flowRef.current = flow; // the (possibly de-templated) copy is now the working flow
       setLoadedName(name);
       setDirty(false);
       setSavePrompt(null);
       showToast(`Saved to flows/${d.file}`);
       refreshList();
+      bump();
       return true;
     } catch (e) {
       showToast(`Save failed: ${e.message}`, true);
       return false;
     }
-  }, [showToast, refreshList]);
+  }, [showToast, refreshList, loadedName, flowList, bump]);
 
   // Primary Save: overwrite the loaded file if there is one, else prompt for a name.
   const onSave = useCallback(() => {
@@ -1836,7 +1956,13 @@ function App() {
     setShowFlowSettings(false);
     setDirty(true);
     bump();
-    showToast(`Added "${prettyStep(id)}" — it isn't connected yet, so a call won't reach it.`, true);
+    // Say / gather / action steps don't continue the call on their own (they
+    // move on through their actions) — say so at creation, not at drag time.
+    const noOnwardPath = payload.kind !== "component" &&
+      ["say", "collect", "tool"].includes(payload.vtype);
+    showToast(noOnwardPath
+      ? `Added "${prettyStep(id)}" — not connected yet. To continue the call after it, follow it with an “Ask questions” step or give it an action.`
+      : `Added "${prettyStep(id)}" — it isn't connected yet, so a call won't reach it.`, true);
   }, [bump, showToast, pushHistory]);
   const addNode = useCallback((vtype) => addLoose({ kind: "type", vtype }, null), [addLoose]);
 
@@ -1887,14 +2013,8 @@ function App() {
     setRfEdges((eds) => applyEdgeChanges(changes, eds));
   }, []);
 
-  const onNodeClick = useCallback((_e, n) => { setShowFlowSettings(false); setSelected(n.id); }, []);
-  const onPaneClick = useCallback(() => setSelected(null), []);
-
-  // Clicking a connection that can't take an insert: say so honestly.
-  const onEdgeClick = useCallback((_e, edge) => {
-    if (edge.data && edge.data.via) return; // its own "+" pill handles inserts
-    showToast(CANT_INSERT_MSG, true);
-  }, [showToast]);
+  const onNodeClick = useCallback((_e, n) => { setShowFlowSettings(false); setSelectedEdge(null); setSelected(n.id); }, []);
+  const onPaneClick = useCallback(() => { setSelected(null); setSelectedEdge(null); }, []);
 
   /* ---- port-drag routing: repoint ONE slot to a different step -------------
      The drag maps a grabbed port to its slot from the LIVE config (never from
@@ -1942,8 +2062,24 @@ function App() {
     connStart.current = params;
     setConnecting(true);
   }, []);
-  // "Drop on a card" — not just on its top handle. If React Flow didn't snap
-  // the connection to a handle, land it on whatever card is under the cursor.
+  // "Drop on a card" — releasing ANYWHERE on a target card must commit, not
+  // just exact handle hits. Resolve the card under the cursor by coordinates
+  // (never by event.target ancestry — the pointer is captured by the source
+  // handle during a connection), and treat a release within a small radius of
+  // any card's top handle as a hit. A drop that resolves nothing never fails
+  // silently: a quiet toast says the drop missed.
+  const resolveDropNode = (x, y) => {
+    const el = document.elementFromPoint(x, y);
+    const nodeEl = el && el.closest ? el.closest(".react-flow__node") : null;
+    if (nodeEl) return nodeEl.getAttribute("data-id");
+    let best = null, bestD = 36; // px — near-misses just above a card still land
+    document.querySelectorAll(".react-flow__node .react-flow__handle-top").forEach((h) => {
+      const r = h.getBoundingClientRect();
+      const d = Math.hypot(x - (r.left + r.width / 2), y - (r.top + r.height / 2));
+      if (d < bestD) { bestD = d; best = h.closest(".react-flow__node"); }
+    });
+    return best ? best.getAttribute("data-id") : null;
+  };
   const onConnectEnd = useCallback((evt) => {
     setConnecting(false);
     const start = connStart.current;
@@ -1952,10 +2088,24 @@ function App() {
     const x = evt.clientX ?? (evt.changedTouches && evt.changedTouches[0] && evt.changedTouches[0].clientX);
     const y = evt.clientY ?? (evt.changedTouches && evt.changedTouches[0] && evt.changedTouches[0].clientY);
     if (x == null || y == null) return;
-    const el = document.elementFromPoint(x, y);
-    const nodeEl = el && el.closest ? el.closest(".react-flow__node") : null;
-    if (nodeEl) connectTo(start.nodeId, start.handleId, nodeEl.getAttribute("data-id"));
-  }, [connectTo]);
+    const targetId = resolveDropNode(x, y);
+    if (targetId) connectTo(start.nodeId, start.handleId, targetId);
+    else showToast("That didn't land — drop on a card to send the call there.");
+  }, [connectTo, showToast]);
+
+  // Clicking an arrow: select it when its route can be removed; otherwise be
+  // honest about why it can't.
+  const onEdgeClick = useCallback((_e, edge) => {
+    if (edge.data && edge.data.fading) return;
+    if (edge.data && edge.data.slotRef) {
+      setSelected(null);
+      setShowFlowSettings(false);
+      setSelectedEdge(edge.id);
+    } else {
+      setSelectedEdge(null);
+      showToast((edge.data && edge.data.blockedMsg) || MSG_COMPLEX_PORT, true);
+    }
+  }, [showToast]);
 
   const flow = flowRef.current;
   const nodeIdList = flow ? Object.keys(flow.nodes || {}) : [];
@@ -2053,8 +2203,9 @@ function App() {
 
           <div class="rail-sec">
             <div class="sec-h">Templates</div>
-            ${flowList.length === 0 && html`<div class="rail-empty">Saved flows show up here as starting points.</div>`}
-            ${flowList.map((f) => html`
+            ${flowList.filter((f) => f.template).length === 0 && html`
+              <div class="rail-empty">Curated starting points appear here. Your own flows live under Open flow.</div>`}
+            ${flowList.filter((f) => f.template).map((f) => html`
               <button key=${f.name} class="pal-item" onClick=${() => useTemplate(f)}
                 style=${{ cursor: "pointer" }}
                 title=${f.name === loadedName ? "This is the flow you're editing" : "Start from a copy of this flow"}>
@@ -2461,7 +2612,14 @@ function Props({ flow, nodeId, nodeIds, markDirty, pushHistory, renameNode, requ
         <label>Instructions</label>
         <textarea rows=${7} value=${node.instructions || ""} onChange=${(e) => setField("instructions", e.target.value)}></textarea>
         <span class="hint">What the assistant should say or do here. Supports <code>{CLINIC_NAME}</code> and <code>{ASSISTANT_NAME}</code>.</span>
-      </div>`}
+      </div>
+      ${(CATEGORY[vt] === "conversation" || CATEGORY[vt] === "integration")
+        && !routesViaFns && !linearSlot(flow, nodeId) && html`
+        <div class="note plain">
+          This kind of step won't continue the call by itself — the call moves on
+          through its actions. Follow it with an “Ask questions” step, or give it
+          an action under Advanced.
+        </div>`}`}
 
     <${Advanced}>
       ${vt === "collect-custom" && html`

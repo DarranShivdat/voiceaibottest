@@ -44,15 +44,17 @@ Before hosting (ngrok or deploy), add at minimum:
 Do NOT share a public URL until at least the token gate is in place.
 
 ## Builder can't edit CONDITIONAL routing (remaining re-wiring gap)
-Port-drag re-routing shipped: any single plain routing slot — a step's own
-`next`, a categorize bucket's `next`, or a plain-string function behavior.goto —
-can be re-pointed by dragging its port to another card (one value changed, one
-undo step). Still JSON-only: conditional targets ({cond,then,else} like the
-slots_available paths), guard gotos, nested route arrays, and categorize
-fallbacks (fallback is panel-editable, not draggable). Those ports render as
-plain dots and explain themselves when grabbed. Note that a shared function's
-goto (e.g. begin_new_intake, used by two steps) is one slot — dragging it moves
-every arrow that rides it, which the map shows immediately.
+Plain routing slots — a step's own `next`, a categorize bucket's `next`, or a
+plain-string function behavior.goto — are fully editable on the canvas: re-point
+by dragging the port to another card, remove by selecting the arrow and
+deleting it (slot → null, which the engine honors), re-draw from the surviving
+port. One value changed, one undo step, every time. Still JSON-only:
+conditional targets ({cond,then,else} like the slots_available paths), guard
+gotos, and nested route arrays; categorize fallbacks are panel-editable but not
+draggable/deletable. Those ports and arrows explain themselves when grabbed or
+clicked. Note that a shared function's goto (e.g. begin_new_intake, used by two
+steps) is one slot — moving or removing it affects every arrow that rides it,
+which the map shows immediately.
 
 ## Builder UX niceties (post-demo polish)
 - Drag-select multiple nodes on the canvas (React Flow selectionOnDrag / multi-select).
